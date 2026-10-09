@@ -1,0 +1,1 @@
+#WMO code -> label/icon
