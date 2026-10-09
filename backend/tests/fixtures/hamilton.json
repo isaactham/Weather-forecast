@@ -1,0 +1,104 @@
+{
+  "results": [
+    {
+      "id": 5969782,
+      "name": "Hamilton",
+      "latitude": 43.25011,
+      "longitude": -79.84963,
+      "elevation": 95,
+      "feature_code": "PPL",
+      "country_code": "CA",
+      "admin1_id": 6093943,
+      "admin2_id": 5969784,
+      "timezone": "America/Toronto",
+      "population": 569353,
+      "country_id": 6251999,
+      "country": "Canada",
+      "admin1": "Ontario",
+      "admin2": "Hamilton"
+    },
+    {
+      "id": 2190324,
+      "name": "Hamilton",
+      "latitude": -37.78333,
+      "longitude": 175.28333,
+      "elevation": 39,
+      "feature_code": "PPLA",
+      "country_code": "NZ",
+      "admin1_id": 2180293,
+      "admin2_id": 7910041,
+      "timezone": "Pacific/Auckland",
+      "population": 192100,
+      "country_id": 2186224,
+      "country": "New Zealand",
+      "admin1": "Waikato Region",
+      "admin2": "Hamilton City"
+    },
+    {
+      "id": 4513575,
+      "name": "Hamilton",
+      "latitude": 39.3995,
+      "longitude": -84.56134,
+      "elevation": 181,
+      "feature_code": "PPLA2",
+      "country_code": "US",
+      "admin1_id": 5165418,
+      "admin2_id": 4507568,
+      "admin3_id": 4513621,
+      "timezone": "America/New_York",
+      "population": 62407,
+      "postcodes": [
+        "45011",
+        "45012",
+        "45013",
+        "45015"
+      ],
+      "country_id": 6252001,
+      "country": "United States",
+      "admin1": "Ohio",
+      "admin2": "Butler",
+      "admin3": "City of Hamilton"
+    },
+    {
+      "id": 4065965,
+      "name": "Hamilton",
+      "latitude": 34.14232,
+      "longitude": -87.98864,
+      "elevation": 149,
+      "feature_code": "PPLA2",
+      "country_code": "US",
+      "admin1_id": 4829764,
+      "admin2_id": 4074636,
+      "timezone": "America/Chicago",
+      "population": 6772,
+      "postcodes": [
+        "35570"
+      ],
+      "country_id": 6252001,
+      "country": "United States",
+      "admin1": "Alabama",
+      "admin2": "Marion"
+    },
+    {
+      "id": 5655959,
+      "name": "Hamilton",
+      "latitude": 46.24687,
+      "longitude": -114.16037,
+      "elevation": 1088,
+      "feature_code": "PPLA2",
+      "country_code": "US",
+      "admin1_id": 5667009,
+      "admin2_id": 5673204,
+      "timezone": "America/Denver",
+      "population": 4602,
+      "postcodes": [
+        "59840"
+      ],
+      "country_id": 6252001,
+      "country": "United States",
+      "admin1": "Montana",
+      "admin2": "Ravalli"
+    }
+  ],
+  "generationtime_ms": 1.8761158
+}
