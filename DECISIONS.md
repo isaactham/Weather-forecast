@@ -54,3 +54,10 @@ Weather codes:
 - CORS allows only the local frontend origin and GET requests (least access needed).
 - Route tests use FastAPI's TestClient with both APIs mocked by respx, covering
   each status code.
+
+## Frontend behavior
+
+- `--emphasis` is a semantic token so orange stays limited to the four priority values in dark mode.
+- The sticky hero reads progress from one rAF-coalesced scroll callback through a CSS variable, avoiding per-scroll UI rerenders.
+- A themed content panel slides over the sticky hero while the higher-z-index sheet remains available above it.
+- The theme switch renders only its active icon, and ISO dates are formatted in UTC to prevent icon overlap and date drift.

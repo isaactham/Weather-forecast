@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weather | Mobile prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --accent: #e8834a;
+      --text: #1e1b18;
+      /* Keep emphasis semantic so only named priority text changes by theme. */
+      --emphasis: var(--text);
+      --text-secondary: #3e3832;
+      --muted: #6b635b;
+      --background: #f6f2ec;
+      --card: #fff;
+      --card-border: #eee6dc;
+      --glass: rgba(255,255,255,.78);
+      --track: #f1ebe3;
+      --rain: #2f6a9e;
+      --input: #fff;
+      --input-border: #e6ded4;
+      --sheet: #fffdfa;
+      --tile: #f6f2ec;
+      --overlay: rgba(30,27,24,.45);
+      --location: #9a4a1c;
+      --sun: #b4561a;
+      --low-line: #8c8379;
+      --sheet-icon: #fbe3d3;
+      --handle: #ddd4ca;
+      --inactive: #e6ded4;
+      --on-accent: #1e1b18;
+      --track-hover: #e8e1d9;
+      --shadow: 0 28px 80px rgba(55,43,31,.18);
+      /* Keep prototype chrome colors named so component styles use the palette. */
+      --canvas: #e9e4dd;
+      --canvas-pattern: rgba(98,81,61,.09);
+      --workspace-ink: #554d44;
+      --workspace-muted: #675e54;
+      --workspace-border: rgba(85,77,68,.13);
+      --workspace-surface: rgba(255,253,250,.72);
+      --workspace-hover: #f3ece4;
+      --workspace-shadow: 0 4px 16px rgba(62,48,33,.05);
+      --workspace-selected-shadow: 0 2px 8px rgba(54,42,29,.12);
+      --device-border: rgba(30,27,24,.13);
+      --device-ring: 0 0 0 7px rgba(255,255,255,.32);
+      --toggle-knob-shadow: 0 1px 4px rgba(20,16,12,.18);
+      --hero-glow: rgba(232,131,74,.85);
+      --sheet-shadow: 0 -12px 38px rgba(0,0,0,.12);
+      --content-panel-shadow: 0 -10px 28px rgba(55,43,31,.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background-color: var(--canvas);
+      background-image: radial-gradient(var(--canvas-pattern) .7px, transparent .7px);
+      background-size: 12px 12px;
+      font-family: 'Manrope', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .workbench {
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+      padding: 28px 18px 32px;
+    }
+    .masthead {
+      width: min(100%, 720px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--workspace-ink);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .masthead-mark { display:flex; align-items:center; gap:9px; }
+    .masthead-dot { width:9px; height:9px; border-radius:50%; background:var(--accent); }
+    .frame-tabs {
+      width: min(100%, 720px);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 7px;
+      padding: 5px;
+      border: 1px solid var(--workspace-border);
+      border-radius: 14px;
+      background: var(--workspace-surface);
+      box-shadow: var(--workspace-shadow);
+    }
+    .frame-tab {
+      min-height: 38px;
+      padding: 0 13px;
+      border: 0;
+      border-radius: 10px;
+      color: var(--workspace-muted);
+      background: transparent;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s, color .2s, transform .2s;
+    }
+    .frame-tab:hover { background: var(--workspace-hover); }
+    .frame-tab:active { transform: scale(.98); }
+    .frame-tab[aria-pressed="true"] { color: var(--text); background: var(--card); box-shadow: var(--workspace-selected-shadow); }
+    .device-wrap { position: relative; animation: arrive .55s cubic-bezier(.2,.75,.25,1) both; }
+    .device {
+      width: 390px;
+      height: 844px;
+      overflow: hidden;
+      border: 1px solid var(--device-border);
+      border-radius: 30px;
+      background: var(--background);
+      color: var(--text);
+      box-shadow: var(--shadow), var(--device-ring);
+      isolation: isolate;
+      transition: background .25s, color .25s;
+    }
+    .app-scroll {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-width: none;
+      overscroll-behavior: contain;
+    }
+    .app-scroll::-webkit-scrollbar { display:none; }
+    .home-content {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      min-height: 100%;
+      padding: 20px 24px 0;
+      color: var(--text);
+    }
+    .search-row { display:flex; align-items:center; gap:10px; }
+    .search-field {
+      display:flex;
+      min-width:0;
+      height:48px;
+      flex:1;
+      align-items:center;
+      gap:10px;
+      padding:0 13px;
+      border:1px solid var(--input-border);
+      border-radius:16px;
+      color:var(--muted);
+      background:var(--input);
+    }
+    .search-field input {
+      width:100%;
+      min-width:0;
+      padding:0;
+      border:0;
+      outline:0;
+      color:var(--text);
+      background:transparent;
+      font-size:12px;
+    }
+    .search-field input::placeholder { color:var(--muted); opacity:1; }
+    .icon-button {
+      display:grid;
+      width:48px;
+      height:48px;
+      flex:none;
+      place-items:center;
+      border:1px solid var(--input-border);
+      border-radius:16px;
+      color:var(--text);
+      background:var(--input);
+      cursor:pointer;
+    }
+    .location-block { display:flex; flex-direction:column; gap:2px; }
+    .location-top { display:flex; min-height:34px; align-items:center; justify-content:space-between; margin-bottom:3px; }
+    .location-tag { display:flex; align-items:center; gap:6px; color:var(--location); font-size:13px; font-weight:700; }
+    .theme-toggle {
+      position:relative;
+      display:flex;
+      width:64px;
+      height:34px;
+      flex:none;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 8px;
+      border:0;
+      border-radius:20px;
+      color:var(--muted);
+      background:var(--track);
+      cursor:pointer;
+    }
+    .theme-toggle:hover { background:var(--track-hover); }
+    .toggle-knob {
+      position:absolute;
+      top:4px;
+      left:4px;
+      display:grid;
+      width:26px;
+      height:26px;
+      place-items:center;
+      border-radius:50%;
+      color:var(--on-accent);
+      background:var(--accent);
+      box-shadow:var(--toggle-knob-shadow);
+      transition:transform 160ms cubic-bezier(.2,.8,.2,1);
+    }
+    .theme-toggle[aria-checked="true"] .toggle-knob { transform:translateX(30px); }
+    h1,h2,h3,p { margin:0; }
+    .city-name { margin-top:2px; color:var(--emphasis); font-size:34px; font-weight:800; line-height:1.2; letter-spacing:-.02em; }
+    .suburb { color:var(--muted); font-size:15px; line-height:1.55; }
+    .coordinates { margin-top:3px; color:var(--muted); font-size:13px; line-height:1.5; font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+    .hero {
+      position:sticky;
+      top:0;
+      z-index:0;
+      display:flex;
+      min-height:208px;
+      flex-direction:column;
+      justify-content:center;
+      padding:0 0 4px 1px;
+      isolation:isolate;
+      opacity:calc(1 - (var(--hero-progress, 0) * .75));
+      transform:scale(calc(1 - (var(--hero-progress, 0) * .06)));
+      transform-origin:center center;
+    }
+    .hero-glow {
+      position:absolute;
+      z-index:-1;
+      top:50%;
+      right:-95px;
+      width:300px;
+      height:300px;
+      border-radius:50%;
+      background:var(--hero-glow);
+      filter:blur(22px);
+      transform:translateY(-50%);
+      pointer-events:none;
+    }
+    .hero-temperature {
+      color:var(--emphasis);
+      white-space:nowrap;
+      font-size:132px;
+      font-weight:500;
+      line-height:.9;
+      letter-spacing:-.06em;
+      font-variant-numeric:tabular-nums;
+      font-feature-settings:'tnum';
+    }
+    .hero-description { margin-top:12px; color:var(--text); font-size:19px; font-weight:700; line-height:1.3; }
+    .city-name,.hero-temperature,.sheet-title,.summary-title { transition:color 250ms ease; }
+    .hero-range { margin-top:5px; color:var(--text-secondary); font-size:15px; }
+    .content-panel {
+      position:relative;
+      z-index:1;
+      display:flex;
+      flex-direction:column;
+      gap:24px;
+      margin:-24px -24px 0;
+      padding:20px 24px 40px;
+      border-radius:28px 28px 0 0;
+      background:var(--background);
+      box-shadow:var(--content-panel-shadow);
+    }
+    .stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
+    .stat-card {
+      display:flex;
+      min-width:0;
+      min-height:105px;
+      flex-direction:column;
+      align-items:flex-start;
+      justify-content:space-between;
+      padding:13px 10px 12px;
+      border:1px solid var(--card-border);
+      border-radius:18px;
+      background:var(--glass);
+    }
+    .stat-icon { display:grid; height:22px; place-items:center; color:var(--text-secondary); }
+    .stat-icon.rain { color:var(--rain); }
+    .stat-label { color:var(--muted); font-size:11px; line-height:1.3; white-space:nowrap; }
+    .stat-value { color:var(--text); font-size:14px; font-weight:800; line-height:1.25; white-space:nowrap; font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+    .card { border:1px solid var(--card-border); border-radius:22px; background:var(--card); }
+    .chart-card { padding:17px 16px 15px; }
+    .card-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .section-title { color:var(--text); font-size:16px; font-weight:800; line-height:1.35; }
+    .legend { display:flex; align-items:center; gap:9px; color:var(--muted); font-size:10px; white-space:nowrap; }
+    .legend-item { display:flex; align-items:center; gap:4px; }
+    .legend-line { width:13px; height:2px; border-radius:2px; background:var(--accent); }
+    .legend-line.low { background:var(--low-line); }
+    .temperature-chart { display:block; width:100%; height:148px; margin-top:9px; overflow:visible; }
+    .chart-area { fill:var(--accent); opacity:.18; }
+    .high-path,.low-path { fill:none; stroke-linecap:round; stroke-linejoin:round; stroke-width:2.2; }
+    .high-path { stroke:var(--accent); }
+    .low-path { stroke:var(--low-line); stroke-width:1.8; }
+    .high-dot { fill:var(--accent); }
+    .low-dot { fill:var(--card); stroke:var(--low-line); stroke-width:1.5; }
+    .chart-high-label,.chart-low-label,.chart-day-label { fill:var(--muted); font-family:'Manrope',sans-serif; font-size:9px; font-variant-numeric:tabular-nums; }
+    .chart-high-label { fill:var(--text); font-size:9px; font-weight:700; }
+    .chart-low-label { font-size:9px; }
+    .chart-day-label { fill:var(--text); font-size:9px; }
+    .chart-day-label.today { fill:var(--text); font-weight:800; }
+    .forecast-card { padding:15px 13px 13px; }
+    .forecast-title { padding:0 3px 6px; }
+    .forecast-row {
+      display:grid;
+      width:100%;
+      min-height:56px;
+      grid-template-columns:35px 22px 30px 25px minmax(28px,1fr) 24px 12px;
+      align-items:center;
+      column-gap:5px;
+      padding:0 2px;
+      border:0;
+      border-bottom:1px solid var(--track);
+      background:transparent;
+      text-align:left;
+      cursor:pointer;
+    }
+    .forecast-row:last-of-type { border-bottom:0; }
+    .day-name { color:var(--text); font-size:12px; font-weight:800; }
+    .forecast-weather { display:grid; place-items:center; color:var(--text-secondary); }
+    .rain-prob { color:var(--rain); font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; }
+    .low-temp,.high-temp { font-size:11px; font-variant-numeric:tabular-nums; }
+    .low-temp { color:var(--muted); }
+    .high-temp { color:var(--text); font-weight:800; text-align:right; }
+    .range-track { position:relative; height:6px; border-radius:6px; background:var(--track); }
+    .range-fill { position:absolute; top:0; height:6px; border-radius:6px; background:var(--accent); }
+    .row-chevron { color:var(--muted); }
+    .forecast-footnote { padding:10px 3px 0; color:var(--muted); font-size:10px; line-height:1.4; }
+    .overlay {
+      position:absolute;
+      z-index:5;
+      inset:0;
+      background:var(--overlay);
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .24s ease;
+    }
+    .overlay.open { opacity:1; pointer-events:auto; }
+    .detail-sheet {
+      position:absolute;
+      z-index:6;
+      right:0;
+      bottom:0;
+      left:0;
+      display:flex;
+      height:640px;
+      flex-direction:column;
+      gap:16px;
+      padding:12px 24px 26px;
+      border-radius:28px 28px 0 0;
+      color:var(--text);
+      background:var(--sheet);
+      box-shadow:var(--sheet-shadow);
+      transform:translateY(102%);
+      transition:transform .32s cubic-bezier(.22,.75,.25,1);
+      overflow-y:auto;
+      scrollbar-width:none;
+    }
+    .detail-sheet::-webkit-scrollbar { display:none; }
+    .detail-sheet.open { transform:translateY(0); }
+    .sheet-handle { width:40px; height:5px; flex:none; align-self:center; margin-bottom:1px; border-radius:5px; background:var(--handle); }
+    .sheet-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .sheet-title { color:var(--emphasis); font-size:26px; font-weight:800; line-height:1.22; }
+    .sheet-date { margin-top:3px; color:var(--muted); font-size:12px; }
+    .close-button { display:grid; width:44px; height:44px; flex:none; place-items:center; border:0; border-radius:50%; color:var(--text); background:var(--track); cursor:pointer; }
+    .summary-row { display:flex; min-height:72px; align-items:center; gap:14px; }
+    .summary-icon { display:grid; width:72px; height:72px; flex:none; place-items:center; border-radius:22px; color:var(--rain); background:var(--sheet-icon); }
+    .summary-title { color:var(--emphasis); font-size:18px; font-weight:800; line-height:1.35; }
+    .summary-range { margin-top:4px; color:var(--text-secondary); font-size:13px; }
+    .day-picker { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px; }
+    .day-pill { display:flex; min-width:0; height:56px; flex-direction:column; align-items:center; justify-content:center; gap:2px; border:1px solid var(--card-border); border-radius:15px; color:var(--text); background:var(--card); cursor:pointer; }
+    .day-pill-name { font-size:10px; font-weight:700; }
+    .day-pill-date { font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
+    .day-pill[aria-pressed="true"] { border-color:var(--accent); color:var(--on-accent); background:var(--accent); }
+    .detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+    .detail-tile { display:flex; min-height:84px; flex-direction:column; justify-content:space-between; padding:12px 14px; border-radius:18px; background:var(--tile); }
+    .tile-label { color:var(--muted); font-size:11px; }
+    .tile-value { color:var(--text); font-size:23px; font-weight:800; line-height:1.15; font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+    .tile-value.rain { color:var(--rain); }
+    .rain-chart-section { margin-top:0; }
+    .rain-chart-title { color:var(--text); font-size:14px; font-weight:800; }
+    .rain-chart { display:grid; height:83px; grid-template-columns:repeat(7,minmax(0,1fr)); align-items:end; gap:10px; margin-top:8px; }
+    .rain-day { display:flex; height:100%; flex-direction:column; align-items:center; justify-content:flex-end; gap:3px; }
+    .rain-day-value { color:var(--muted); font-size:8px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
+    .rain-bar-track { display:flex; width:17px; height:58px; align-items:flex-end; border-radius:10px; background:var(--track); overflow:hidden; }
+    .rain-bar { width:100%; min-height:4px; border-radius:10px; background:var(--inactive); transition:height .22s,background .22s; }
+    .rain-bar.selected { background:var(--accent); }
+    .rain-day-label { color:var(--muted); font-size:9px; font-weight:700; }
+    .screen-reader-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    svg { display:block; }
+    button:focus-visible,input:focus-visible { outline:3px solid var(--rain); outline-offset:2px; }
+    @keyframes arrive { from { opacity:0; transform:translateY(9px); } to { opacity:1; transform:translateY(0); } }
+
+    [data-mode="dark"] {
+      color-scheme:dark;
+      --background:#111315;
+      --text:#f3f1ee;
+      --emphasis:var(--accent);
+      --text-secondary:#d5d2cd;
+      --muted:#9ca3ab;
+      --card:#181b1e;
+      --card-border:#24282c;
+      --glass:rgba(27,30,34,.82);
+      --track:#2a2e33;
+      --rain:#8dbdf4;
+      --input:#1b1e22;
+      --input-border:#2a2e33;
+      --sheet:#181b1e;
+      --tile:#22262a;
+      --overlay:rgba(0,0,0,.6);
+      --location:#e8834a;
+      --sun:#e8834a;
+      --low-line:#9ca3ab;
+      --sheet-icon:#2b2620;
+      --handle:#3a3f45;
+      --inactive:#2e3338;
+      --on-accent:#111315;
+      --track-hover:#343940;
+      --shadow:0 28px 80px rgba(0,0,0,.28);
+      --hero-glow:rgba(237,235,230,.16);
+      --sheet-shadow:0 -12px 38px rgba(0,0,0,.3);
+      --content-panel-shadow:0 -10px 28px rgba(0,0,0,.3);
+    }
+    @media (max-width:430px) {
+      .workbench { gap:15px; padding:14px 0 0; }
+      .masthead { width:calc(100% - 36px); }
+      .frame-tabs { width:calc(100% - 20px); gap:3px; padding:4px; border-radius:12px; }
+      .frame-tab { min-height:34px; padding:0 8px; font-size:10px; }
+      .device { border-radius:26px 26px 0 0; }
+    }
+    @media (max-width:360px) {
+      .home-content { padding-right:18px; padding-left:18px; }
+      .detail-sheet { padding-right:18px; padding-left:18px; }
+      .forecast-row { grid-template-columns:32px 20px 28px 23px minmax(24px,1fr) 22px 10px; column-gap:4px; }
+      .day-picker { gap:3px; }
+      .day-pill { border-radius:12px; }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; }
+      .hero { opacity:1!important; transform:none!important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="workbench">
+    <header class="masthead"><span class="masthead-mark"><span class="masthead-dot"></span>Weather</span><span>Mobile prototype · 390 × 844</span></header>
+    <nav class="frame-tabs" aria-label="Prototype frames">
+      <button class="frame-tab" data-frame="home-light" aria-pressed="true">Home · Light</button>
+      <button class="frame-tab" data-frame="home-dark" aria-pressed="false">Home · Dark</button>
+      <button class="frame-tab" data-frame="detail-light" aria-pressed="false">Day detail · Light</button>
+      <button class="frame-tab" data-frame="detail-dark" aria-pressed="false">Day detail · Dark</button>
+    </nav>
+    <div class="device-wrap">
+      <section class="device" id="device" data-mode="light" aria-label="Weather mobile app">
+        <div class="app-scroll" id="app-scroll">
+          <div class="home-content">
+            <form class="search-row" id="search-form" role="search">
+              <label class="search-field">
+                <span class="screen-reader-only">Search for a city, address or coordinates</span>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>
+                <input type="search" placeholder="City, address or −37.78, 175.28" aria-label="City, address or coordinates">
+              </label>
+              <button class="icon-button" id="locate-button" type="button" aria-label="Use my location" title="Use my location">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.2"/><path d="M12 2v2.2M12 19.8V22M2 12h2.2M19.8 12H22"/></svg>
+              </button>
+            </form>
+            <section class="location-block" aria-label="Current location">
+              <div class="location-top">
+                <div class="location-tag"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>Current location</div>
+                <button class="theme-toggle" id="theme-toggle" role="switch" aria-checked="false" aria-label="Dark mode">
+                  <span class="toggle-knob" aria-hidden="true"></span>
+                </button>
+              </div>
+              <h1 class="city-name">Hamilton</h1>
+              <p class="suburb">Waikato, New Zealand</p>
+              <p class="coordinates" id="coordinates">−37.79°, 175.28° · Mon 12 Oct</p>
+            </section>
+            <section class="hero" aria-label="Current weather: 15 degrees, slight rain">
+              <span class="hero-glow" aria-hidden="true"></span>
+              <div class="hero-temperature">15°</div>
+              <p class="hero-description">Slight rain</p>
+              <p class="hero-range">H 17° · L 9°</p>
+            </section>
+            <div class="content-panel">
+            <section class="stats" aria-label="Today's weather details">
+              <article class="stat-card"><span class="stat-icon rain"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.2S5.5 10.5 5.5 15a6.5 6.5 0 0 0 13 0c0-4.5-6.5-11.8-6.5-11.8Z"/><path d="M9.5 16a2.7 2.7 0 0 0 2.7 2.7"/></svg></span><span class="stat-label">Rain chance</span><strong class="stat-value">70%</strong></article>
+              <article class="stat-card"><span class="stat-icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5h10.5a2.5 2.5 0 1 0-2.3-3.5M2 13h15a2.5 2.5 0 1 1-2.3 3.5M4 16.5h5"/></svg></span><span class="stat-label">Max wind</span><strong class="stat-value">22 km/h</strong></article>
+              <article class="stat-card"><span class="stat-icon"><svg width="22" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18.5 17.5h-12a4.5 4.5 0 1 1 .7-8.9 6 6 0 0 1 11.3 1.5 3.8 3.8 0 0 1 0 7.4Z"/><path d="m9 20-1 2m6-2-1 2m6-2-1 2"/></svg></span><span class="stat-label">Rainfall</span><strong class="stat-value">3.2 mm</strong></article>
+            </section>
+            <section class="card chart-card" aria-labelledby="week-chart-title">
+              <div class="card-heading"><h2 class="section-title" id="week-chart-title">Temperature this week</h2><div class="legend" aria-label="Chart legend"><span class="legend-item"><i class="legend-line"></i>High</span><span class="legend-item"><i class="legend-line low"></i>Low</span></div></div>
+              <svg class="temperature-chart" id="temperature-chart" viewBox="0 0 300 148" role="img" aria-label="High and low temperatures across seven days"></svg>
+            </section>
+            <section class="card forecast-card" aria-labelledby="forecast-title">
+              <h2 class="section-title forecast-title" id="forecast-title">7-day forecast</h2>
+              <div id="forecast-rows"></div>
+              <p class="forecast-footnote">Tap a day for full details · Data from Open-Meteo</p>
+            </section>
+            </div>
+          </div>
+        </div>
+        <button class="overlay" id="overlay" type="button" aria-label="Close day details"></button>
+        <section class="detail-sheet" id="detail-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" aria-hidden="true">
+          <div class="sheet-handle" aria-hidden="true"></div>
+          <header class="sheet-header"><div><h2 class="sheet-title" id="sheet-title">Tuesday</h2><p class="sheet-date" id="sheet-date">Tuesday 13 October · Hamilton</p></div><button class="close-button" id="close-sheet" aria-label="Close day details"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+          <div class="summary-row"><div class="summary-icon" id="summary-icon" aria-hidden="true"></div><div><h3 class="summary-title" id="summary-title">Moderate rain</h3><p class="summary-range" id="summary-range">High 15° · Low 8°</p></div></div>
+          <nav class="day-picker" id="day-picker" aria-label="Choose forecast day"></nav>
+          <section class="detail-grid" aria-label="Day weather details">
+            <article class="detail-tile"><span class="tile-label">Chance of rain</span><strong class="tile-value rain" id="detail-rain">85%</strong></article>
+            <article class="detail-tile"><span class="tile-label">Rainfall</span><strong class="tile-value" id="detail-fall">8.4 mm</strong></article>
+            <article class="detail-tile"><span class="tile-label">Max wind</span><strong class="tile-value" id="detail-wind">31 km/h</strong></article>
+            <article class="detail-tile"><span class="tile-label">UV index</span><strong class="tile-value" id="detail-uv">3</strong></article>
+          </section>
+          <section class="rain-chart-section" aria-labelledby="rain-chart-title"><h3 class="rain-chart-title" id="rain-chart-title">Rain chance this week</h3><div class="rain-chart" id="rain-chart" role="img" aria-label="Rain chance percentages for the week"></div></section>
+        </section>
+      </section>
+    </div>
+  </main>
+  <script type="module">
+    import { renderToggleIcon } from './theme-toggle.mjs';
+    import { formatCoordinate, formatDayOfMonth, formatFullDate, formatLocationDate } from './utils/format.js';
+
+    const days = [
+      { short:'Today', name:'Monday', date:'2026-10-12', condition:'Rain', summary:'Slight rain', chance:70, low:9, high:17, rain:'3.2 mm', wind:'22 km/h', uv:'3', icon:'rain' },
+      { short:'Tue', name:'Tuesday', date:'2026-10-13', condition:'Rain', summary:'Moderate rain', chance:85, low:8, high:15, rain:'8.4 mm', wind:'31 km/h', uv:'3', icon:'rain' },
+      { short:'Wed', name:'Wednesday', date:'2026-10-14', condition:'Cloud', summary:'Cloudy', chance:30, low:6, high:14, rain:'1.2 mm', wind:'18 km/h', uv:'2', icon:'cloud' },
+      { short:'Thu', name:'Thursday', date:'2026-10-15', condition:'Partly cloudy', summary:'Partly cloudy', chance:15, low:7, high:16, rain:'0.4 mm', wind:'16 km/h', uv:'4', icon:'partly' },
+      { short:'Fri', name:'Friday', date:'2026-10-16', condition:'Sun', summary:'Mostly sunny', chance:5, low:10, high:19, rain:'0 mm', wind:'14 km/h', uv:'6', icon:'sun' },
+      { short:'Sat', name:'Saturday', date:'2026-10-17', condition:'Sun', summary:'Sunny', chance:10, low:11, high:20, rain:'0 mm', wind:'19 km/h', uv:'7', icon:'sun' },
+      { short:'Sun', name:'Sunday', date:'2026-10-18', condition:'Rain', summary:'Light rain', chance:55, low:10, high:18, rain:'2.1 mm', wind:'25 km/h', uv:'3', icon:'rain' }
+    ];
+    const data = { location: { lat: -37.79, lng: 175.28 } };
+    const device = document.querySelector('#device');
+    const appScroll = document.querySelector('#app-scroll');
+    const hero = document.querySelector('.hero');
+    const sheet = document.querySelector('#detail-sheet');
+    const overlay = document.querySelector('#overlay');
+    const toggle = document.querySelector('#theme-toggle');
+    let selectedDay = 1;
+    let activeMode = 'light';
+    let heroFramePending = false;
+
+    const icons = {
+      rain: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18.5 16.5h-12a4.5 4.5 0 1 1 .7-8.9 6 6 0 0 1 11.3 1.5 3.8 3.8 0 0 1 0 7.4Z"/><path d="m9 19-1 2m6-2-1 2m6-2-1 2"/></svg>',
+      cloud: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17H6.5a4.5 4.5 0 1 1 .7-8.9 6.5 6.5 0 0 1 12.2 1.8A3.6 3.6 0 0 1 19 17Z"/></svg>',
+      partly: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="3.2"/><path d="M8 2v1.2M2 8h1.2m9.1-4.1-.8.8m-7 7-.8.8m14.8 4.2H8.5a4 4 0 1 1 .6-7.9 5.5 5.5 0 0 1 10.4 1.5 3.1 3.1 0 0 1-.6 6.1Z"/></svg>',
+      sun: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--sun)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>'
+    };
+
+    function renderRows() {
+      const rows = document.querySelector('#forecast-rows');
+      rows.replaceChildren(...days.map((day, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'forecast-row';
+        button.setAttribute('aria-label', `${day.name}: ${day.summary}, ${day.chance}% chance of rain, low ${day.low} degrees, high ${day.high} degrees`);
+        const start = ((day.low - 6) / 14) * 100;
+        const width = ((day.high - day.low) / 14) * 100;
+        button.innerHTML = `<span class="day-name">${day.short}</span><span class="forecast-weather" aria-hidden="true">${icons[day.icon]}</span><span class="rain-prob">${day.chance}%</span><span class="low-temp">${day.low}°</span><span class="range-track" aria-hidden="true"><i class="range-fill" style="left:${start}%;width:${width}%"></i></span><span class="high-temp">${day.high}°</span><span class="row-chevron" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>`;
+        button.addEventListener('click', () => openSheet(index));
+        return button;
+      }));
+    }
+
+    function renderDayPicker() {
+      const picker = document.querySelector('#day-picker');
+      picker.replaceChildren(...days.map((day, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'day-pill';
+        button.setAttribute('aria-pressed', String(index === selectedDay));
+        button.setAttribute('aria-label', `${day.name} ${formatDayOfMonth(day.date)} October`);
+        button.innerHTML = `<span class="day-pill-name">${day.short === 'Today' ? 'Mon' : day.short}</span><span class="day-pill-date">${formatDayOfMonth(day.date)}</span>`;
+        button.addEventListener('click', () => selectDay(index));
+        return button;
+      }));
+    }
+
+    function renderRainChart() {
+      const chart = document.querySelector('#rain-chart');
+      chart.replaceChildren(...days.map((day, index) => {
+        const item = document.createElement('div');
+        item.className = 'rain-day';
+        item.setAttribute('aria-label', `${day.name}: ${day.chance}% chance of rain`);
+        item.innerHTML = `<span class="rain-day-value">${day.chance}%</span><span class="rain-bar-track"><i class="rain-bar${index === selectedDay ? ' selected' : ''}" style="height:${Math.max(day.chance, 7)}%"></i></span><span class="rain-day-label">${day.short === 'Today' ? 'Mon' : day.short}</span>`;
+        return item;
+      }));
+    }
+
+    function renderTemperatureChart() {
+      const svg = document.querySelector('#temperature-chart');
+      const xs = days.map((_, index) => 18 + index * 44);
+      const highY = days.map(day => 98 - (day.high - 6) * 4.15);
+      const lowY = days.map(day => 111 - (day.low - 6) * 3.5);
+      const points = values => values.map((y, index) => `${xs[index]},${y}`).join(' ');
+      const area = `${points(highY)} ${points(lowY).split(' ').reverse().join(' ')}`;
+      svg.innerHTML = `<polygon class="chart-area" points="${area}"/><polyline class="high-path" points="${points(highY)}"/><polyline class="low-path" points="${points(lowY)}"/>${days.map((day,index) => `<circle class="high-dot" cx="${xs[index]}" cy="${highY[index]}" r="2.7"/><circle class="low-dot" cx="${xs[index]}" cy="${lowY[index]}" r="2.5"/><text class="chart-high-label" x="${xs[index]}" y="${highY[index]-8}" text-anchor="middle">${day.high}°</text><text class="chart-low-label" x="${xs[index]}" y="${lowY[index]+13}" text-anchor="middle">${day.low}°</text><text class="chart-day-label${index===0?' today':''}" x="${xs[index]}" y="143" text-anchor="middle">${day.short}</text>`).join('')}`;
+    }
+
+    function selectDay(index) {
+      selectedDay = index;
+      const day = days[index];
+      document.querySelector('#sheet-title').textContent = day.name;
+      document.querySelector('#sheet-date').textContent = `${formatFullDate(day.date)} · Hamilton`;
+      document.querySelector('#summary-title').textContent = day.summary;
+      document.querySelector('#summary-range').textContent = `High ${day.high}° · Low ${day.low}°`;
+      document.querySelector('#summary-icon').innerHTML = icons[day.icon].replace('width="22" height="22"','width="39" height="39"');
+      document.querySelector('#detail-rain').textContent = `${day.chance}%`;
+      document.querySelector('#detail-fall').textContent = day.rain;
+      document.querySelector('#detail-wind').textContent = day.wind;
+      document.querySelector('#detail-uv').textContent = day.uv;
+      renderDayPicker();
+      renderRainChart();
+    }
+
+    function openSheet(index) {
+      selectDay(index);
+      overlay.classList.add('open');
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden', 'false');
+      document.querySelector('#close-sheet').focus({ preventScroll:true });
+    }
+
+    function closeSheet() {
+      overlay.classList.remove('open');
+      sheet.classList.remove('open');
+      sheet.setAttribute('aria-hidden', 'true');
+    }
+
+    function renderCoordinates() {
+      const { lat, lng } = data.location;
+      document.querySelector('#coordinates').textContent = `${formatCoordinate(lat)}, ${formatCoordinate(lng)} · ${formatLocationDate(days[0].date)}`;
+    }
+
+    function setMode(mode) {
+      activeMode = mode;
+      device.dataset.mode = mode;
+      const dark = mode === 'dark';
+      toggle.setAttribute('aria-checked', String(dark));
+      toggle.querySelector('.toggle-knob').innerHTML = renderToggleIcon(dark);
+    }
+
+    function setFrame(frame) {
+      const dark = frame.endsWith('dark');
+      const detail = frame.startsWith('detail');
+      setMode(dark ? 'dark' : 'light');
+      document.querySelectorAll('.frame-tab').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.frame === frame)));
+      if (detail) openSheet(1); else closeSheet();
+      appScroll.scrollTop = 0;
+    }
+
+    function updateHeroProgress() {
+      if (heroFramePending) return;
+      heroFramePending = true;
+      requestAnimationFrame(() => {
+        const progress = Math.min(appScroll.scrollTop / 240, 1);
+        hero.style.setProperty('--hero-progress', progress.toFixed(3));
+        heroFramePending = false;
+      });
+    }
+
+    function scaleDevice() {
+      if (window.innerWidth > 430) {
+        device.style.transform = '';
+        document.querySelector('.device-wrap').style.width = '';
+        document.querySelector('.device-wrap').style.height = '';
+        return;
+      }
+      const scale = Math.min(1, document.documentElement.clientWidth / 390);
+      device.style.transform = `scale(${scale})`;
+      device.style.transformOrigin = 'top left';
+      document.querySelector('.device-wrap').style.width = `${390 * scale}px`;
+      document.querySelector('.device-wrap').style.height = `${844 * scale}px`;
+    }
+
+    document.querySelectorAll('.frame-tab').forEach(button => button.addEventListener('click', () => setFrame(button.dataset.frame)));
+    // Coalesce scrolling work so hero styles update at most once per frame.
+    appScroll.addEventListener('scroll', updateHeroProgress, { passive:true });
+    window.addEventListener('resize', scaleDevice);
+    toggle.addEventListener('click', () => setMode(activeMode === 'light' ? 'dark' : 'light'));
+    document.querySelector('#close-sheet').addEventListener('click', closeSheet);
+    overlay.addEventListener('click', closeSheet);
+    document.querySelector('#locate-button').addEventListener('click', renderCoordinates);
+    document.querySelector('#search-form').addEventListener('submit', event => event.preventDefault());
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && sheet.classList.contains('open')) closeSheet(); });
+
+    renderRows();
+    renderTemperatureChart();
+    renderCoordinates();
+    selectDay(1);
+    setMode('light');
+    scaleDevice();
+  </script>
+</body>
+</html>
