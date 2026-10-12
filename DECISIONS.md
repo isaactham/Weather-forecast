@@ -61,3 +61,10 @@ Weather codes:
 - The sticky hero reads progress from one rAF-coalesced scroll callback through a CSS variable, avoiding per-scroll UI rerenders.
 - A themed content panel slides over the sticky hero while the higher-z-index sheet remains available above it.
 - The theme switch renders only its active icon, and ISO dates are formatted in UTC to prevent icon overlap and date drift.
+
+## Animated weather backgrounds
+
+- One pure WMO mapper handles current and daily forecast codes so weather scenes share a single condition map.
+- Particle positions are deterministic and cached once so scenes remain stable and tests are reproducible.
+- Scene motion uses transform and opacity; reduced-motion mode freezes visible particles and suppresses lightning.
+- The `?condition=` override makes every weather scene demoable without changing the forecast data.

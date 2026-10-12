@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="./weather-background.css" rel="stylesheet">
   <style>
     :root {
       color-scheme: light;
@@ -17,9 +18,14 @@
       --text-secondary: #3e3832;
       --muted: #6b635b;
       --background: #f6f2ec;
+      --bg: var(--background);
+      --orb: var(--accent);
+      --orb-opacity: .85;
       --card: #fff;
       --card-border: #eee6dc;
-      --glass: rgba(255,255,255,.78);
+      --glass: rgba(255,255,255,.55);
+      --glass-border: rgba(255,255,255,.75);
+      --search-bg: rgba(255,255,255,.72);
       --track: #f1ebe3;
       --rain: #2f6a9e;
       --input: #fff;
@@ -49,7 +55,6 @@
       --device-border: rgba(30,27,24,.13);
       --device-ring: 0 0 0 7px rgba(255,255,255,.32);
       --toggle-knob-shadow: 0 1px 4px rgba(20,16,12,.18);
-      --hero-glow: rgba(232,131,74,.85);
       --sheet-shadow: 0 -12px 38px rgba(0,0,0,.12);
       --content-panel-shadow: 0 -10px 28px rgba(55,43,31,.08);
     }
@@ -122,11 +127,11 @@
       overflow: hidden;
       border: 1px solid var(--device-border);
       border-radius: 30px;
-      background: var(--background);
+      background: var(--bg);
       color: var(--text);
       box-shadow: var(--shadow), var(--device-ring);
       isolation: isolate;
-      transition: background .25s, color .25s;
+      transition: background-color 400ms ease, color .25s;
     }
     .app-scroll {
       position: relative;
@@ -155,10 +160,12 @@
       align-items:center;
       gap:10px;
       padding:0 13px;
-      border:1px solid var(--input-border);
+      border:1px solid var(--glass-border);
       border-radius:16px;
       color:var(--muted);
-      background:var(--input);
+      background:var(--search-bg);
+      backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
     }
     .search-field input {
       width:100%;
@@ -243,7 +250,8 @@
       width:300px;
       height:300px;
       border-radius:50%;
-      background:var(--hero-glow);
+      background:var(--orb);
+      opacity:var(--orb-opacity);
       filter:blur(22px);
       transform:translateY(-50%);
       pointer-events:none;
@@ -270,8 +278,9 @@
       margin:-24px -24px 0;
       padding:20px 24px 40px;
       border-radius:28px 28px 0 0;
-      background:var(--background);
+      background:var(--bg);
       box-shadow:var(--content-panel-shadow);
+      transition:background-color 400ms ease;
     }
     .stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
     .stat-card {
@@ -282,9 +291,11 @@
       align-items:flex-start;
       justify-content:space-between;
       padding:13px 10px 12px;
-      border:1px solid var(--card-border);
+      border:1px solid var(--glass-border);
       border-radius:18px;
       background:var(--glass);
+      backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
     }
     .stat-icon { display:grid; height:22px; place-items:center; color:var(--text-secondary); }
     .stat-icon.rain { color:var(--rain); }
@@ -402,16 +413,21 @@
     button:focus-visible,input:focus-visible { outline:3px solid var(--rain); outline-offset:2px; }
     @keyframes arrive { from { opacity:0; transform:translateY(9px); } to { opacity:1; transform:translateY(0); } }
 
-    [data-mode="dark"] {
+    [data-theme="dark"] {
       color-scheme:dark;
       --background:#111315;
+      --bg:var(--background);
+      --orb:#EDEBE6;
+      --orb-opacity:.16;
       --text:#f3f1ee;
       --emphasis:var(--accent);
       --text-secondary:#d5d2cd;
       --muted:#9ca3ab;
       --card:#181b1e;
       --card-border:#24282c;
-      --glass:rgba(27,30,34,.82);
+      --glass:rgba(24,27,30,.55);
+      --glass-border:rgba(255,255,255,.08);
+      --search-bg:rgba(27,30,34,.72);
       --track:#2a2e33;
       --rain:#8dbdf4;
       --input:#1b1e22;
@@ -428,10 +444,21 @@
       --on-accent:#111315;
       --track-hover:#343940;
       --shadow:0 28px 80px rgba(0,0,0,.28);
-      --hero-glow:rgba(237,235,230,.16);
       --sheet-shadow:0 -12px 38px rgba(0,0,0,.3);
       --content-panel-shadow:0 -10px 28px rgba(0,0,0,.3);
     }
+    /* Condition tokens recolor the scene without changing layout or content. */
+    [data-theme="light"][data-condition="clear"] { --bg:#F6F2EC; --orb:var(--accent); --orb-opacity:.85; }
+    [data-theme="light"][data-condition="cloudy"] { --bg:#ECEDEC; --orb:var(--accent); --orb-opacity:.32; }
+    [data-theme="light"][data-condition="rain"] { --bg:#E6EBEF; --orb:#9DB4C8; --orb-opacity:.55; --muted:#5A544E; }
+    [data-theme="light"][data-condition="snow"] { --bg:#E7EDF3; --orb:#FFFFFF; --orb-opacity:.9; }
+    [data-theme="light"][data-condition="storm"] { --bg:#D6DADF; --orb:#8D97A3; --orb-opacity:.4; --muted:#5A544E; }
+    [data-theme="dark"][data-condition="clear"] { --bg:#111315; --orb:#EDEBE6; --orb-opacity:.16; }
+    [data-theme="dark"][data-condition="cloudy"] { --bg:#15181B; --orb:#EDEBE6; --orb-opacity:.07; }
+    [data-theme="dark"][data-condition="rain"] { --bg:#0F1418; --orb:#4E6A84; --orb-opacity:.28; }
+    [data-theme="dark"][data-condition="snow"] { --bg:#12161B; --orb:#DDE6EF; --orb-opacity:.12; }
+    [data-theme="dark"][data-condition="storm"] { --bg:#0B0D10; --orb:#3E4A58; --orb-opacity:.3; }
+    [data-theme="dark"][data-condition="rain"], [data-theme="dark"][data-condition="storm"] { --glass:rgba(24,27,30,.55); }
     @media (max-width:430px) {
       .workbench { gap:15px; padding:14px 0 0; }
       .masthead { width:calc(100% - 36px); }
@@ -449,6 +476,7 @@
     @media (prefers-reduced-motion:reduce) {
       *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; }
       .hero { opacity:1!important; transform:none!important; }
+      .device,.content-panel { transition:none!important; }
     }
   </style>
 </head>
@@ -462,7 +490,7 @@
       <button class="frame-tab" data-frame="detail-dark" aria-pressed="false">Day detail · Dark</button>
     </nav>
     <div class="device-wrap">
-      <section class="device" id="device" data-mode="light" aria-label="Weather mobile app">
+      <section class="device" id="device" data-theme="light" data-condition="clear" aria-label="Weather mobile app">
         <div class="app-scroll" id="app-scroll">
           <div class="home-content">
             <form class="search-row" id="search-form" role="search">
@@ -487,7 +515,6 @@
               <p class="coordinates" id="coordinates">−37.79°, 175.28° · Mon 12 Oct</p>
             </section>
             <section class="hero" aria-label="Current weather: 15 degrees, slight rain">
-              <span class="hero-glow" aria-hidden="true"></span>
               <div class="hero-temperature">15°</div>
               <p class="hero-description">Slight rain</p>
               <p class="hero-range">H 17° · L 9°</p>
@@ -530,6 +557,8 @@
   <script type="module">
     import { renderToggleIcon } from './theme-toggle.mjs';
     import { formatCoordinate, formatDayOfMonth, formatFullDate, formatLocationDate } from './utils/format.js';
+    import { conditionFromWeatherData } from './utils/weatherCondition.js';
+    import { WeatherBackground } from './components/weatherBackground.js';
 
     const days = [
       { short:'Today', name:'Monday', date:'2026-10-12', condition:'Rain', summary:'Slight rain', chance:70, low:9, high:17, rain:'3.2 mm', wind:'22 km/h', uv:'3', icon:'rain' },
@@ -540,10 +569,14 @@
       { short:'Sat', name:'Saturday', date:'2026-10-17', condition:'Sun', summary:'Sunny', chance:10, low:11, high:20, rain:'0 mm', wind:'19 km/h', uv:'7', icon:'sun' },
       { short:'Sun', name:'Sunday', date:'2026-10-18', condition:'Rain', summary:'Light rain', chance:55, low:10, high:18, rain:'2.1 mm', wind:'25 km/h', uv:'3', icon:'rain' }
     ];
-    const data = { location: { lat: -37.79, lng: 175.28 } };
+    const data = { location: { lat: -37.79, lng: 175.28 }, current: { code: 61 } };
     const device = document.querySelector('#device');
+    const conditionOverride = new URLSearchParams(window.location.search).get('condition');
+    const condition = conditionFromWeatherData(data, conditionOverride);
+    device.dataset.condition = condition;
     const appScroll = document.querySelector('#app-scroll');
     const hero = document.querySelector('.hero');
+    hero.insertAdjacentHTML('afterbegin', WeatherBackground({ condition, isDark: false }));
     const sheet = document.querySelector('#detail-sheet');
     const overlay = document.querySelector('#overlay');
     const toggle = document.querySelector('#theme-toggle');
@@ -645,10 +678,11 @@
 
     function setMode(mode) {
       activeMode = mode;
-      device.dataset.mode = mode;
+      device.dataset.theme = mode;
       const dark = mode === 'dark';
       toggle.setAttribute('aria-checked', String(dark));
       toggle.querySelector('.toggle-knob').innerHTML = renderToggleIcon(dark);
+      document.querySelector('.weather-background').dataset.theme = mode;
     }
 
     function setFrame(frame) {

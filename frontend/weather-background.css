@@ -1,0 +1,145 @@
+.weather-background {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: -24px;
+  left: -24px;
+  height: 844px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wb-orb {
+  position: absolute;
+  top: 120px;
+  left: 120px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: var(--orb);
+  opacity: var(--orb-opacity);
+  filter: blur(24px);
+  animation: wb-breathe 9s ease-in-out infinite;
+}
+
+.wb-cloud {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(18px);
+  animation: wb-drift 22s ease-in-out infinite alternate;
+}
+
+.wb-cloud--outer { background: #FFFFFF; }
+.wb-cloud--middle { background: #D3D9DD; }
+.wb-drop {
+  position: absolute;
+  top: -40px;
+  border-radius: 999px;
+  will-change: transform;
+  animation: wb-rain .75s linear infinite;
+}
+
+.wb-flake {
+  position: absolute;
+  top: -20px;
+  display: grid;
+  place-items: center;
+  will-change: transform;
+  animation: wb-snow 7s linear infinite;
+}
+
+.wb-flake-dot {
+  display: block;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 0 3px rgba(70,90,110,.35);
+  animation: wb-sway 2.6s ease-in-out infinite alternate;
+}
+
+.wb-star {
+  position: absolute;
+  border-radius: 50%;
+  background: #FFFFFF;
+  animation: wb-twinkle 2.4s ease-in-out infinite;
+}
+
+.wb-flash {
+  position: absolute;
+  inset: 0;
+  animation: wb-flash 7s linear infinite;
+}
+
+@keyframes wb-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+
+@keyframes wb-drift {
+  0% { transform: translateX(-26px); }
+  100% { transform: translateX(38px); }
+}
+
+@keyframes wb-rain {
+  0% { transform: translate(0,0) rotate(12deg); }
+  100% { transform: translate(-150px,844px) rotate(12deg); }
+}
+
+@keyframes wb-snow {
+  0% { transform: translateY(-20px); }
+  100% { transform: translateY(844px); }
+}
+
+@keyframes wb-sway {
+  0% { transform: translateX(-10px); }
+  100% { transform: translateX(10px); }
+}
+
+@keyframes wb-twinkle {
+  0%, 100% { opacity: .15; }
+  50% { opacity: .95; }
+}
+
+@keyframes wb-flash {
+  0%, 86%, 100% { opacity: 0; }
+  88% { opacity: 1; }
+  89% { opacity: .2; }
+  91% { opacity: .85; }
+  95% { opacity: 0; }
+}
+
+.weather-background[data-theme="light"][data-condition="cloudy"] .wb-cloud { opacity: .9; }
+.weather-background[data-theme="dark"][data-condition="cloudy"] .wb-cloud { opacity: .9; }
+.weather-background[data-theme="dark"][data-condition="cloudy"] .wb-cloud--outer { background: #2C3137; }
+.weather-background[data-theme="dark"][data-condition="cloudy"] .wb-cloud--middle { background: #353B42; }
+
+.weather-background[data-theme="light"][data-condition="rain"] .wb-cloud { opacity: .85; }
+.weather-background[data-theme="light"][data-condition="rain"] .wb-cloud--outer { background: #D3DBE2; }
+.weather-background[data-theme="light"][data-condition="rain"] .wb-cloud--middle { background: #C5CFD8; }
+.weather-background[data-theme="dark"][data-condition="rain"] .wb-cloud { opacity: .9; }
+.weather-background[data-theme="dark"][data-condition="rain"] .wb-cloud--outer { background: #1F262D; }
+.weather-background[data-theme="dark"][data-condition="rain"] .wb-cloud--middle { background: #252D35; }
+.weather-background[data-theme="light"][data-condition="rain"] .wb-drop { background: #6E8498; }
+.weather-background[data-theme="dark"][data-condition="rain"] .wb-drop { background: #8DBDF4; }
+
+.weather-background[data-theme="light"][data-condition="storm"] .wb-cloud { opacity: .9; }
+.weather-background[data-theme="light"][data-condition="storm"] .wb-cloud--outer { background: #A9B2BC; }
+.weather-background[data-theme="light"][data-condition="storm"] .wb-cloud--middle { background: #9AA4AF; }
+.weather-background[data-theme="dark"][data-condition="storm"] .wb-cloud { opacity: .95; }
+.weather-background[data-theme="dark"][data-condition="storm"] .wb-cloud--outer { background: #1A1F25; }
+.weather-background[data-theme="dark"][data-condition="storm"] .wb-cloud--middle { background: #20262D; }
+.weather-background[data-theme="light"][data-condition="storm"] .wb-drop { background: #5E6E7E; }
+.weather-background[data-theme="dark"][data-condition="storm"] .wb-drop { background: #8DBDF4; }
+.weather-background[data-theme="light"][data-condition="storm"] .wb-flash { background: rgba(255,255,255,.6); }
+.weather-background[data-theme="dark"][data-condition="storm"] .wb-flash { background: rgba(220,230,255,.22); }
+
+.weather-background[data-theme="dark"][data-condition="snow"] .wb-flake-dot {
+  background: #E8EEF4;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class^="wb-"], [class*=" wb-"] { animation: none !important; }
+  /* Keep falling particles visible when motion is disabled. */
+  .wb-drop, .wb-flake { transform: translateY(var(--static-top)) !important; }
+  .wb-flash { opacity: 0 !important; }
+}
