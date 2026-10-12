@@ -39,7 +39,7 @@ def fetch_forecast(lat: float, lng: float) -> dict:
     params = {
         "latitude": lat,
         "longitude": lng,
-        "daily": ".".join(DAILY_FIELDS),
+        "daily": ",".join(DAILY_FIELDS),
         "timezone": "auto",
         "forecast_days": 7,
     }
