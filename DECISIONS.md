@@ -42,3 +42,15 @@ Weather codes:
   failure cases (500, timeout) that are hard to trigger for real.
 - Used synchronous httpx for simplicity. Async would scale better under heavy
   load and is a possible improvement.
+
+## API route (main.py)
+
+- One endpoint, GET /api/forecast?q=..., so the frontend only needs one call.
+- Errors mapped to status codes: 400 bad input, 404 place not found,
+  502 upstream service down. The frontend can show a specific message for each.
+- Parsing has its own try block so only parser ValueErrors become 400s.
+- Coordinates skip geocoding: saves an API call, and builds the same location
+  shape so the rest of the route doesn't care which path was taken.
+- CORS allows only the local frontend origin and GET requests (least access needed).
+- Route tests use FastAPI's TestClient with both APIs mocked by respx, covering
+  each status code.
