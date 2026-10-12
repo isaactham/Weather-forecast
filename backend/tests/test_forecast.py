@@ -1,4 +1,10 @@
 import json
+import httpx
+import pytest
+import respx
+
+from app.forecast import fetch_forecast, WeatherServiceError
+
 from pathlib import Path
 # Checks
 ###Checks
@@ -37,3 +43,28 @@ def test_summary_uses_weather_description():
     assert isinstance(first["summary"], str)
     assert first["summary"] != ""
 
+@respx.mock
+def test_fetch_forecast_returns_json():
+    respx.get(host="api.open-meteo.com", path="/v1/forecast").mock(
+        return_value=httpx.Response(200, json=load_fixture())
+    )
+    raw = fetch_forecast(-37.78, 175.28)
+    assert "daily" in raw
+
+
+@respx.mock
+def test_server_error_raises_weather_service_error():
+    respx.get(host="api.open-meteo.com", path="/v1/forecast").mock(
+        return_value=httpx.Response(500)
+    )
+    with pytest.raises(WeatherServiceError):
+        fetch_forecast(-37.78, 175.28)
+
+
+@respx.mock
+def test_timeout_raises_weather_service_error():
+    respx.get(host="api.open-meteo.com", path="/v1/forecast").mock(
+        side_effect=httpx.ConnectTimeout
+    )
+    with pytest.raises(WeatherServiceError):
+        fetch_forecast(-37.78, 175.28)

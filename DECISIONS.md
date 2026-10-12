@@ -1,10 +1,12 @@
 Parser
+
 - Parser only classifies input; checking if a place is real is the geocoder's job
 - Catch ValueError only (not bare except) so real bugs aren't hidden as "place"
 - Range check written as not (-90 <= lat <= 90) so "nan" is rejected
 - Range check kept outside try/except so the out-of-range error isn't swallowed
 
 Weather codes:
+
 - “Open-Meteo returns WMO weather codes as numbers, so I map them to readable labels with a dictionary. I used .get() with a default so an unexpected code shows ‘Unknown’ instead of crashing the whole forecast.”
 
 ## Forecast reshaping (forecast.py → build_days)
@@ -28,3 +30,15 @@ Weather codes:
   as None instead of crashing. The UI can show "–" for that day.
 - summary is filled in with describe() so the frontend gets readable text and
   doesn't need its own copy of the weather code table.
+
+### Fetch_forecast
+
+- fetch_forecast wraps all httpx errors in my own WeatherServiceError, so the route
+  only handles one error type and doesn't depend on httpx details.
+- 10 second timeout so a slow Open-Meteo can't hang the request forever.
+- raise_for_status() so 4xx/5xx responses are treated as errors, not silently used.
+- Settings (URL, daily fields) kept as constants at the top for easy changes.
+- Network calls mocked with respx in tests: fast, reliable, and lets me test
+  failure cases (500, timeout) that are hard to trigger for real.
+- Used synchronous httpx for simplicity. Async would scale better under heavy
+  load and is a possible improvement.
