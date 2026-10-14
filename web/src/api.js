@@ -21,7 +21,11 @@ export async function fetchForecast(query, signal) {
       // Keep the status-based message when the error response is not JSON.
     }
 
-    const message = body?.detail ?? `Something went wrong (${response.status})`;
+    const fallbackMessages = {
+      404: "We couldn't find that place. Try a city name or coordinates.",
+      502: 'The weather service is unavailable right now. Please try again shortly.'
+    };
+    const message = body?.detail || fallbackMessages[response.status] || `Something went wrong (${response.status})`;
     const error = new Error(message);
     error.status = response.status;
     throw error;

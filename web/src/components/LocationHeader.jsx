@@ -8,9 +8,9 @@ export function LocationHeader({ location, date, isDark, onToggleTheme, isCurren
         <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />
       </div>
       <h1 className="city-name">{location.city}</h1>
-      <p className="suburb">{location.region}</p>
+      {location.region && <p className="suburb">{location.region}</p>}
       <p className="coordinates">
-        {location.coordinates} · {date}
+        {location.coordinates}{date ? ` · ${date}` : ''}
       </p>
     </section>
   );

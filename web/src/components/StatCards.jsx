@@ -1,3 +1,5 @@
+import { formatWithUnit } from '../utils/format.js';
+
 function RainIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -26,9 +28,9 @@ function RainfallIcon() {
 
 export function StatCards({ day }) {
   const stats = [
-    { label: 'Rain chance', value: `${day.precipChance}%`, icon: <RainIcon />, accent: true },
-    { label: 'Max wind', value: `${day.windMax} km/h`, icon: <WindIcon /> },
-    { label: 'Rainfall', value: `${day.precipMm} mm`, icon: <RainfallIcon /> }
+    { label: 'Rain chance', value: formatWithUnit(day.precipChance, '%'), icon: <RainIcon />, accent: true },
+    { label: 'Max wind', value: formatWithUnit(day.windMax, ' km/h'), icon: <WindIcon /> },
+    { label: 'Rainfall', value: formatWithUnit(day.precipMm, ' mm', 1), icon: <RainfallIcon /> }
   ];
 
   return (

@@ -1,24 +1,24 @@
 import { WeatherIcon } from './WeatherIcon.jsx';
-
-function display(value, suffix = '') {
-  return value == null ? '–' : `${value}${suffix}`;
-}
+import {
+  formatDayOfMonth,
+  formatFullDate,
+  formatInteger,
+  formatLongWeekday,
+  formatShortWeekday,
+  formatWithUnit
+} from '../utils/format.js';
 
 export function DayDetailSheet({ days, selectedDayIndex, locationName, isOpen, onSelectDay, onClose }) {
   const day = days[selectedDayIndex];
   if (!day || !isOpen) return null;
 
-  const weekday = new Date(`${day.date}T00:00:00`).toLocaleDateString('en-NZ', { weekday: 'long' });
-  const fullDate = new Date(`${day.date}T00:00:00`).toLocaleDateString('en-NZ', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long'
-  });
+  const weekday = formatLongWeekday(day.date);
+  const fullDate = formatFullDate(day.date);
   const stats = [
-    ['Chance of rain', display(day.precipChance, '%'), true],
-    ['Rainfall', display(day.precipMm, ' mm')],
-    ['Max wind', display(day.windMax, ' km/h')],
-    ['UV index', display(day.uvMax)]
+    ['Chance of rain', formatWithUnit(day.precipChance, '%'), true],
+    ['Rainfall', formatWithUnit(day.precipMm, ' mm', 1)],
+    ['Max wind', formatWithUnit(day.windMax, ' km/h')],
+    ['UV index', formatInteger(day.uvMax)]
   ];
 
   return (
@@ -48,8 +48,8 @@ export function DayDetailSheet({ days, selectedDayIndex, locationName, isOpen, o
         <div className="summary-row">
           <span className="summary-icon"><WeatherIcon code={day.code} size={39} /></span>
           <div>
-            <h3 className="summary-title">{day.summary}</h3>
-            <p className="summary-range">High {display(day.tempMax, '°')} · Low {display(day.tempMin, '°')}</p>
+            <h3 className="summary-title">{day.summary ?? '–'}</h3>
+            <p className="summary-range">High {formatWithUnit(day.tempMax, '°')} · Low {formatWithUnit(day.tempMin, '°')}</p>
           </div>
         </div>
         <nav className="day-picker" aria-label="Choose forecast day">
@@ -61,8 +61,8 @@ export function DayDetailSheet({ days, selectedDayIndex, locationName, isOpen, o
               aria-pressed={index === selectedDayIndex}
               onClick={() => onSelectDay(index)}
             >
-              <span className="day-pill-name">{index === 0 ? 'Today' : new Date(`${item.date}T00:00:00`).toLocaleDateString('en-NZ', { weekday: 'short' })}</span>
-              <span className="day-pill-date">{new Date(`${item.date}T00:00:00`).getDate()}</span>
+              <span className="day-pill-name">{index === 0 ? 'Today' : formatShortWeekday(item.date)}</span>
+              <span className="day-pill-date">{formatDayOfMonth(item.date)}</span>
             </button>
           ))}
         </nav>

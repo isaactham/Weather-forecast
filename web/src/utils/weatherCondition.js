@@ -7,3 +7,10 @@ export function conditionFromCode(code) {
   if (code >= 95 && code <= 99) return 'storm';
   return 'clear';
 }
+
+export function conditionFromWeatherData(data, conditionOverride) {
+  if (['clear', 'cloudy', 'rain', 'snow', 'storm'].includes(conditionOverride)) {
+    return conditionOverride;
+  }
+  return conditionFromCode(data?.current?.code);
+}

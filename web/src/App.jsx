@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchForecast } from './api.js';
 import { DayDetailSheet } from './components/DayDetailSheet.jsx';
 import { ForecastList } from './components/ForecastList.jsx';
@@ -6,28 +6,11 @@ import { Hero } from './components/Hero.jsx';
 import { LocationHeader } from './components/LocationHeader.jsx';
 import { StatCards } from './components/StatCards.jsx';
 import { TemperatureChart } from './components/TemperatureChart.jsx';
-import { conditionFromCode } from './utils/weatherCondition.js';
+import { formatLocation, formatLocationDate } from './utils/format.js';
+import { conditionFromWeatherData } from './utils/weatherCondition.js';
 import './App.css';
 
-const demoForecast = {
-  location: {
-    city: 'Hamilton',
-    region: 'Waikato, New Zealand',
-    coordinates: '−37.79°, 175.28°'
-  },
-  current: { temperature: 15, code: 61, summary: 'Slight rain' },
-  days: [
-    { date: '2026-10-12', tempMax: 17, tempMin: 9, precipMm: 3.2, precipChance: 70, windMax: 22, uvMax: 3, code: 61, summary: 'Slight rain' },
-    { date: '2026-10-13', tempMax: 15, tempMin: 8, precipMm: 8.4, precipChance: 85, windMax: 31, uvMax: 3, code: 63, summary: 'Moderate rain' },
-    { date: '2026-10-14', tempMax: 14, tempMin: 6, precipMm: 1.2, precipChance: 30, windMax: 18, uvMax: 2, code: 3, summary: 'Overcast' },
-    { date: '2026-10-15', tempMax: 16, tempMin: 7, precipMm: 0.4, precipChance: 15, windMax: 16, uvMax: 4, code: 2, summary: 'Partly cloudy' },
-    { date: '2026-10-16', tempMax: 19, tempMin: 10, precipMm: 0, precipChance: 5, windMax: 14, uvMax: 6, code: 1, summary: 'Mainly clear' },
-    { date: '2026-10-17', tempMax: 20, tempMin: 11, precipMm: 0, precipChance: 10, windMax: 19, uvMax: 7, code: 0, summary: 'Clear sky' },
-    { date: '2026-10-18', tempMax: 18, tempMin: 10, precipMm: 2.1, precipChance: 55, windMax: 25, uvMax: 3, code: 80, summary: 'Rain showers' }
-  ]
-};
-
-function SearchBar({ onSearch }) {
+function SearchBar({ onSearch, onLocate }) {
   const [searchText, setSearchText] = useState('');
 
   function handleSubmit(event) {
@@ -54,6 +37,14 @@ function SearchBar({ onSearch }) {
       <button className="icon-button" type="submit" aria-label="Search">
         <span aria-hidden="true">⌕</span>
       </button>
+      <button
+        className="icon-button"
+        type="button"
+        aria-label="Use my current location"
+        onClick={onLocate}
+      >
+        <span aria-hidden="true">◎</span>
+      </button>
     </form>
   );
 }
@@ -63,9 +54,40 @@ function App() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
   const [isDark, setIsDark] = useState(false);
+  const [usedCurrentLocation, setUsedCurrentLocation] = useState(false);
   const [selectedDayIndex, setSelectedDayIndex] = useState(1);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const startupLocationRequested = useRef(false);
+
+  const loadCurrentLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setUsedCurrentLocation(false);
+      setQuery('Hamilton');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUsedCurrentLocation(true);
+        setIsDetailOpen(false);
+        // The backend parser already accepts coordinate queries, so no backend change is needed.
+        setQuery(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
+      },
+      () => {
+        setUsedCurrentLocation(false);
+        setQuery('Hamilton');
+      },
+      { timeout: 8000 }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (startupLocationRequested.current) return;
+    startupLocationRequested.current = true;
+    loadCurrentLocation();
+  }, [loadCurrentLocation]);
 
   useEffect(() => {
     if (!query) return undefined;
@@ -77,6 +99,7 @@ function App() {
     fetchForecast(query, controller.signal)
       .then((forecast) => {
         setData(forecast);
+        setSelectedDayIndex(0);
         setStatus('success');
       })
       .catch((error) => {
@@ -87,62 +110,101 @@ function App() {
 
     // Abort a slow older request so it cannot overwrite a newer search.
     return () => controller.abort();
-  }, [query]);
+  }, [query, retryCount]);
 
-  const forecast = demoForecast;
-  const today = forecast.days[0];
+  const forecast = data;
+  const today = forecast?.days?.[0];
+  const location = forecast ? formatLocation(forecast.location) : null;
+  const conditionOverride = new URLSearchParams(window.location.search).get('condition');
+  const condition = conditionFromWeatherData(forecast, conditionOverride);
+  const locationDate = today ? formatLocationDate(today.date) : '';
 
   return (
     <main
       className="weather-app"
       data-theme={isDark ? 'dark' : 'light'}
-      data-condition={conditionFromCode(forecast.current.code)}
+      data-condition={condition}
+      data-status={status}
     >
       <div className="app-scroll">
         <div className="home-content">
-          <SearchBar onSearch={setQuery} />
-          <LocationHeader
-            location={forecast.location}
-            date="Mon 12 Oct"
-            isDark={isDark}
-            onToggleTheme={() => setIsDark((value) => !value)}
-            isCurrentLocation
+          <SearchBar
+            onLocate={loadCurrentLocation}
+            onSearch={(nextQuery) => {
+              setUsedCurrentLocation(false);
+              setIsDetailOpen(false);
+              setQuery(nextQuery);
+            }}
           />
-          <Hero
-            current={forecast.current}
-            today={today}
-            condition={conditionFromCode(forecast.current.code)}
-            isDark={isDark}
+          {!forecast && status === 'loading' && (
+            <div className="loading-hero" role="status" aria-live="polite">
+              <span className="loading-indicator" aria-hidden="true" />
+              <p>Loading forecast…</p>
+            </div>
+          )}
+          {forecast && status === 'loading' && (
+            <p className="loading-banner" role="status" aria-live="polite">
+              Loading forecast for {query}…
+            </p>
+          )}
+          {status === 'error' && (
+            <section className="error-card" role="alert">
+              <div>
+                <h2>Forecast unavailable</h2>
+                <p>{errorMessage || "Something went wrong. Please try again."}</p>
+              </div>
+              <button
+                type="button"
+                className="retry-button"
+                onClick={() => setRetryCount((count) => count + 1)}
+                disabled={!query}
+              >
+                Try again
+              </button>
+            </section>
+          )}
+          {forecast && today && (
+            <>
+              <LocationHeader
+                location={location}
+                date={locationDate}
+                isDark={isDark}
+                onToggleTheme={() => setIsDark((value) => !value)}
+                isCurrentLocation={usedCurrentLocation}
+              />
+              <Hero
+                current={forecast.current}
+                today={today}
+                condition={condition}
+                isDark={isDark}
+              />
+              <div className="content-panel">
+                <StatCards day={today} />
+                <TemperatureChart days={forecast.days} />
+                <ForecastList
+                  days={forecast.days}
+                  selectedDayIndex={isDetailOpen ? selectedDayIndex : -1}
+                  onSelectDay={(index) => {
+                    setSelectedDayIndex(index);
+                    setIsDetailOpen(true);
+                  }}
+                />
+              </div>
+            </>
+          )}
+          {!forecast && status === 'idle' && (
+            <p className="request-status">Search for a city to see its forecast.</p>
+          )}
+          <DayDetailSheet
+            days={forecast?.days ?? []}
+            selectedDayIndex={selectedDayIndex}
+            locationName={location?.city ?? ''}
+            isOpen={isDetailOpen}
+            onSelectDay={setSelectedDayIndex}
+            onClose={() => setIsDetailOpen(false)}
           />
-          <div className="content-panel">
-            <StatCards day={today} />
-            <TemperatureChart days={forecast.days} />
-            <ForecastList
-              days={forecast.days}
-              selectedDayIndex={isDetailOpen ? selectedDayIndex : -1}
-              onSelectDay={(index) => {
-                setSelectedDayIndex(index);
-                setIsDetailOpen(true);
-              }}
-            />
-          </div>
         </div>
       </div>
-      <DayDetailSheet
-        days={forecast.days}
-        selectedDayIndex={selectedDayIndex}
-        locationName={forecast.location.city}
-        isOpen={isDetailOpen}
-        onSelectDay={setSelectedDayIndex}
-        onClose={() => setIsDetailOpen(false)}
-      />
-      {status === 'loading' && <p className="request-status" role="status">Loading forecast…</p>}
-      {status === 'error' && <p className="request-status error" role="alert">{errorMessage}</p>}
-      {data && (
-        <output className="request-status">
-          Loaded forecast for {data.location.name}.
-        </output>
-      )}
     </main>
   );
 }
