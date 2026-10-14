@@ -17,6 +17,20 @@ def test_parse_allowed_origins_trims_spaces_and_ignores_empty_entries():
     ) == ["https://weather.example.com", "http://localhost:5173"]
 
 
+def test_root_redirects_to_docs():
+    response = client.get("/", follow_redirects=False)
+
+    assert response.is_redirect
+    assert response.headers["location"].endswith("/docs")
+
+
+def test_health_check_returns_ok():
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 def load(name):
     return json.loads((FIXTURES / name).read_text())
 

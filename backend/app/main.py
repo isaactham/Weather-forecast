@@ -3,6 +3,7 @@ import os
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from app.parser import parse_query
 from app.geocoding import (
@@ -39,6 +40,12 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    # Visitors to the bare API URL should see its docs instead of a "Not Found" error.
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/api/health")
