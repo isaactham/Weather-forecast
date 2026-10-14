@@ -102,3 +102,9 @@ Weather codes:
 - Do not persist My location as a fixed saved place; request the device's current coordinates for the current session.
 - Open a saved card in Search using its saved label, so the dashboard choice remains recognizable even when the forecast request uses coordinates.
 - Keep Saved and Search as horizontal pages with URL hashes and browser history, so page navigation works with back/forward controls and direct links.
+
+## Deployment
+
+- Deployed to Render (free) using a Blueprint (`render.yaml`) so the setup is version-controlled; config comes from environment variables.
+- Trade-off: the free API sleeps after 15 minutes, handled with a “waking up” message.
+- In production I'd use AWS (App Runner or Elastic Beanstalk) to avoid cold starts.

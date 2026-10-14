@@ -1,5 +1,23 @@
 # Weather-forecast
 
+## Live demo
+
+- Frontend: [<frontend URL>](<frontend URL>)
+- Backend API: [<backend URL>](<backend URL>)
+
+The free API sleeps after 15 minutes of inactivity, so the first request can take about a minute while it wakes up.
+
+## Deployment
+
+The root [`render.yaml`](./render.yaml) is a Render Blueprint defining the Python API web service and React static site. In Render, create a Blueprint from this repository and provide these environment variables when prompted:
+
+- `NOMINATIM_USER_AGENT` identifies this app when it requests reverse geocoding from Nominatim.
+- `ALLOWED_ORIGINS` is the deployed frontend's full origin (for example, `https://weather.onrender.com`); the backend uses it for CORS.
+- `VITE_API_URL` is the deployed backend's base URL (for example, `https://weather-api.onrender.com`). Vite embeds this value when it builds the static site, so changing it requires a new frontend build/deploy.
+- `PYTHON_VERSION` is set to `3.13.2` in the Blueprint.
+
+Deploy the Blueprint, note the backend URL, set that URL as `VITE_API_URL` and redeploy the static site, then set the frontend URL as `ALLOWED_ORIGINS` on the backend and redeploy the API. This order makes each service's URL available before configuring the service that depends on it.
+
 ## How to run
 
 Start the backend first. It serves the forecast API on port 8000.
