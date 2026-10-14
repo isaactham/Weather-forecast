@@ -4,24 +4,26 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.parser import parse_query
 from app.geocoding import geocode, GeocodingError, LocationNotFoundError
-from app.forecast import fetch_forecast, build_days, WeatherServiceError
+from app.forecast import fetch_forecast, build_current, build_days, WeatherServiceError
 
 app = FastAPI(title="Weather App")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://localhost:5173"],
+    allow_origins=["http://localhost:5173", "https://localhost:5173"],
     allow_methods=["GET"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
+
 
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
 
+
 #GET request comes to this address
 @app.get("/api/forecast")
-def get_forecast(q:str = Query(..., description="A place name or coodinates like '-37.78, 175.28'")):
+def get_forecast(q: str = Query(..., description="A place name or coodinates like '-37.78, 175.28'")):
     try:
         parsed = parse_query(q)
     except ValueError as error:
@@ -41,7 +43,7 @@ def get_forecast(q:str = Query(..., description="A place name or coodinates like
 
     except LocationNotFoundError:
         raise HTTPException(
-            status_code = 404,
+            status_code=404,
             detail=f"Couldn't find \"{q}\". Try a city name or coordinates.",
         )
     except (GeocodingError, WeatherServiceError):
@@ -50,4 +52,8 @@ def get_forecast(q:str = Query(..., description="A place name or coodinates like
             detail="The weather service is unavailable right now. Please try again shortly",
         )
 
-    return {"location": location, "days": build_days(raw)}
+    return {
+        "location": location,
+        "current": build_current(raw),
+        "days": build_days(raw),
+    }
