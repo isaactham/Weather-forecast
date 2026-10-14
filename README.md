@@ -2,8 +2,8 @@
 
 ## Live demo
 
-- Frontend: [<frontend URL>](<frontend URL>)
-- Backend API: [<backend URL>](<backend URL>)
+- Frontend: [<frontend URL>](<https://weather-hrbc.onrender.com>)
+- Backend API: [<backend URL>](<https://weather-api-e1vm.onrender.com>)
 
 The free API sleeps after 15 minutes of inactivity, so the first request can take about a minute while it wakes up.
 
