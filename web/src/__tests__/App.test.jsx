@@ -56,6 +56,7 @@ const locations = [
 describe('App forecast flow', () => {
   beforeEach(() => {
     window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#saved`);
+    localStorage.clear();
     setGeolocationDenied();
     vi.stubGlobal('fetch', vi.fn(async (url) => {
       const requestUrl = new URL(url);
@@ -100,6 +101,66 @@ describe('App forecast flow', () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(screen.getAllByRole('button', { name: /chance of rain/ })).toHaveLength(7);
+  });
+
+  it('saves the displayed place and persists it, then removes it when clicked again', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole('heading', { name: 'Hamilton' });
+    const header = within(screen.getByRole('region', { name: 'Current location' }));
+    const saveButton = await header.findByRole('button', { name: 'Save' });
+    await user.click(saveButton);
+
+    expect(await header.findByRole('button', { name: 'Saved' })).toHaveAttribute('aria-pressed', 'true');
+    expect(await screen.findByText('Saved to your places')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('weather.savedPlaces.v1'))).toEqual([{
+      id: '-37.780,175.280',
+      name: 'Hamilton, Waikato, New Zealand',
+      lat: -37.78,
+      lng: 175.28,
+      savedAt: expect.any(String)
+    }]);
+
+    await user.click(header.getByRole('button', { name: 'Saved' }));
+
+    expect(await header.findByRole('button', { name: 'Save' })).toHaveAttribute('aria-pressed', 'false');
+    expect(await screen.findByText('Removed from your places')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('weather.savedPlaces.v1'))).toEqual([]);
+  });
+
+  it('shows Saved when the current coordinates already exist in storage', async () => {
+    localStorage.setItem('weather.savedPlaces.v1', JSON.stringify([{
+      id: '-37.780,175.280',
+      name: 'Hamilton, Waikato, New Zealand',
+      lat: -37.78,
+      lng: 175.28,
+      savedAt: '2026-10-14T00:00:00Z'
+    }]));
+    render(<App />);
+
+    await screen.findByRole('heading', { name: 'Hamilton' });
+    const header = within(screen.getByRole('region', { name: 'Current location' }));
+    expect(await header.findByRole('button', { name: 'Saved' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('shows the save limit message when there are already 20 saved places', async () => {
+    const places = Array.from({ length: 20 }, (_, index) => ({
+      id: `0.000,${index}.000`,
+      name: `Place ${index}`,
+      lat: 0,
+      lng: index,
+      savedAt: '2026-10-14T00:00:00Z'
+    }));
+    localStorage.setItem('weather.savedPlaces.v1', JSON.stringify(places));
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole('heading', { name: 'Hamilton' });
+    await user.click(await screen.findByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('You can save up to 20 places. Remove one to add another.')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('weather.savedPlaces.v1'))).toHaveLength(20);
   });
 
   it('opens the Search page from the navigation pill and syncs the hash', async () => {
@@ -271,6 +332,9 @@ describe('App forecast flow', () => {
       expect.stringContaining('q=43.2501%2C%20-79.8496'),
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(JSON.parse(localStorage.getItem('weather.savedPlaces.v1'))[0].name)
+      .toBe('Hamilton, Ontario, Canada');
   });
 
   it('loads a single match without opening the dropdown', async () => {

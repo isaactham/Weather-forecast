@@ -8,6 +8,13 @@ import { LocationHeader } from './components/LocationHeader.jsx';
 import { StatCards } from './components/StatCards.jsx';
 import { TemperatureChart } from './components/TemperatureChart.jsx';
 import { formatLocation, formatLocationDate, isCoordinates } from './utils/format.js';
+import {
+  isSaved,
+  loadSavedPlaces,
+  persistSavedPlaces,
+  removePlace,
+  savePlace
+} from './utils/savedPlaces.js';
 import { conditionFromWeatherData } from './utils/weatherCondition.js';
 import './App.css';
 
@@ -120,6 +127,9 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchMessage, setSearchMessage] = useState('');
   const [searchAnnouncement, setSearchAnnouncement] = useState('');
+  const [savedPlaces, setSavedPlaces] = useState(loadSavedPlaces);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
   const [activePage, setActivePage] = useState(
     () => (window.location.hash === '#search' ? 'search' : 'saved')
   );
@@ -128,6 +138,15 @@ function App() {
   const searchContainer = useRef(null);
   const pager = useRef(null);
   const scrollFrame = useRef(null);
+  const toastTimer = useRef(null);
+
+  const showToast = useCallback((message) => {
+    setToastMessage(message);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToastMessage(''), 1800);
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const scrollToPage = useCallback((page, behavior = 'smooth') => {
     const pagerElement = pager.current;
@@ -224,6 +243,37 @@ function App() {
     setSearchAnnouncement('');
     closeDropdown();
   }, [closeDropdown]);
+
+  const toggleSavedPlace = useCallback(() => {
+    if (!data) return;
+    const { lat, lng, name } = data.location;
+    const existing = isSaved(savedPlaces, lat, lng);
+
+    if (existing) {
+      const updated = removePlace(savedPlaces, `${lat.toFixed(3)},${lng.toFixed(3)}`);
+      setSavedPlaces(updated);
+      persistSavedPlaces(updated);
+      setSaveMessage('');
+      showToast('Removed from your places');
+      return;
+    }
+
+    const updated = savePlace(savedPlaces, {
+      name: isCoordinates(name) ? 'Pinned location' : name,
+      lat,
+      lng,
+      savedAt: new Date().toISOString()
+    });
+    if (updated === savedPlaces) {
+      setSaveMessage('You can save up to 20 places. Remove one to add another.');
+      return;
+    }
+
+    setSavedPlaces(updated);
+    persistSavedPlaces(updated);
+    setSaveMessage('');
+    showToast('Saved to your places');
+  }, [data, savedPlaces, showToast]);
 
   const moveHighlight = useCallback((direction) => {
     setActiveLocationIndex((current) => {
@@ -442,7 +492,11 @@ function App() {
                 isDark={isDark}
                 onToggleTheme={() => setIsDark((value) => !value)}
                 isCurrentLocation={usedCurrentLocation}
+                canSave={Boolean(forecast && status !== 'loading')}
+                isSaved={forecast ? isSaved(savedPlaces, forecast.location.lat, forecast.location.lng) : false}
+                onToggleSaved={toggleSavedPlace}
               />
+              {saveMessage && <p className="save-limit-message" role="status">{saveMessage}</p>}
               <Hero
                 current={forecast.current}
                 today={today}
@@ -477,6 +531,7 @@ function App() {
           </div>
         </section>
       </div>
+      {toastMessage && <div className="save-toast" aria-live="polite">{toastMessage}</div>}
       <nav className="page-navigation" aria-label="Weather pages">
         {[
           { page: 'saved', label: 'Saved', icon: 'list' },
