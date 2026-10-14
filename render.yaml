@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: weather-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Bind to all interfaces and Render's injected port so the service is reachable.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.2"
+      - key: NOMINATIM_USER_AGENT
+        value: "WeatherForecastDemo/1.0 (github.com/your-username/Weather-forecast)"
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+  - type: web
+    name: weather
+    runtime: static
+    rootDir: web
+    # VITE_API_URL is embedded into the static bundle during this build.
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false
