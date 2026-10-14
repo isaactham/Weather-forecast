@@ -40,3 +40,12 @@ export function fetchForecast(query, signal) {
 export function searchLocations(query, signal) {
   return getJson(`${API_URL}/api/locations?q=${encodeURIComponent(query)}`, signal);
 }
+
+export function fetchCurrentMany(coordsList, signal) {
+  const params = new URLSearchParams();
+  coordsList.forEach(({ lat, lng }) => {
+    params.append('lat', lat);
+    params.append('lng', lng);
+  });
+  return getJson(`${API_URL}/api/current?${params}`, signal);
+}

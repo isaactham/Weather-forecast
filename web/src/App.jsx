@@ -120,9 +120,36 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchMessage, setSearchMessage] = useState('');
   const [searchAnnouncement, setSearchAnnouncement] = useState('');
+  const [activePage, setActivePage] = useState(
+    () => (window.location.hash === '#search' ? 'search' : 'saved')
+  );
   const startupLocationRequested = useRef(false);
   const lookupController = useRef(null);
   const searchContainer = useRef(null);
+  const pager = useRef(null);
+  const scrollFrame = useRef(null);
+
+  const scrollToPage = useCallback((page, behavior = 'smooth') => {
+    const pagerElement = pager.current;
+    if (!pagerElement) return;
+    const left = page === 'search' ? pagerElement.clientWidth : 0;
+
+    if (behavior === 'auto') {
+      pagerElement.scrollLeft = left;
+    } else {
+      pagerElement.scrollTo({ left, behavior });
+    }
+  }, []);
+
+  const navigateToPage = useCallback((page) => {
+    if (page === activePage) return;
+    window.history.pushState({ page }, '', `#${page}`);
+    setActivePage(page);
+    scrollToPage(
+      page,
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    );
+  }, [activePage, scrollToPage]);
 
   const closeDropdown = useCallback(() => {
     setLocations([]);
@@ -250,6 +277,67 @@ function App() {
   }, [loadCurrentLocation]);
 
   useEffect(() => {
+    const initialPage = window.location.hash === '#search' ? 'search' : 'saved';
+    if (window.location.hash !== '#saved' && window.location.hash !== '#search') {
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#saved`);
+    }
+    scrollToPage(initialPage, 'auto');
+
+    function handlePopState() {
+      const page = window.location.hash === '#search' ? 'search' : 'saved';
+      setActivePage(page);
+      scrollToPage(page, 'auto');
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [scrollToPage]);
+
+  useEffect(() => {
+    const pagerElement = pager.current;
+    if (!pagerElement) return undefined;
+
+    function handleScroll() {
+      if (scrollFrame.current !== null) return;
+      scrollFrame.current = window.requestAnimationFrame(() => {
+        scrollFrame.current = null;
+        const page = pagerElement.scrollLeft >= pagerElement.clientWidth / 2 ? 'search' : 'saved';
+        setActivePage(page);
+        if (window.location.hash !== `#${page}`) {
+          window.history.replaceState(window.history.state, '', `#${page}`);
+        }
+      });
+    }
+
+    pagerElement.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      pagerElement.removeEventListener('scroll', handleScroll);
+      if (scrollFrame.current !== null) {
+        window.cancelAnimationFrame(scrollFrame.current);
+        scrollFrame.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleArrowNavigation(event) {
+      if (isDetailOpen) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement
+        && (target.isContentEditable || target.matches('input, textarea, select'))
+      ) return;
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+
+      event.preventDefault();
+      navigateToPage(event.key === 'ArrowLeft' ? 'saved' : 'search');
+    }
+
+    window.addEventListener('keydown', handleArrowNavigation);
+    return () => window.removeEventListener('keydown', handleArrowNavigation);
+  }, [isDetailOpen, navigateToPage]);
+
+  useEffect(() => {
     if (!query) return undefined;
 
     const controller = new AbortController();
@@ -289,9 +377,21 @@ function App() {
       data-theme={isDark ? 'dark' : 'light'}
       data-condition={condition}
       data-status={status}
+      data-detail-open={isDetailOpen}
     >
-      <div className="app-scroll">
-        <div className="home-content">
+      <div
+        className="page-pager"
+        ref={pager}
+        aria-label="Weather app pages"
+      >
+        <section className="pager-page saved-page" id="saved" aria-label="Saved places">
+          <div className="saved-page-content">
+            <h1 className="saved-page-title">Saved places</h1>
+            <p className="saved-page-placeholder">Your saved places will appear here.</p>
+          </div>
+        </section>
+        <section className="pager-page app-scroll" id="search" aria-label="Search">
+          <div className="home-content">
           <SearchBar
             searchText={searchText}
             onSearchTextChange={updateSearchText}
@@ -374,8 +474,35 @@ function App() {
             onSelectDay={setSelectedDayIndex}
             onClose={() => setIsDetailOpen(false)}
           />
-        </div>
+          </div>
+        </section>
       </div>
+      <nav className="page-navigation" aria-label="Weather pages">
+        {[
+          { page: 'saved', label: 'Saved', icon: 'list' },
+          { page: 'search', label: 'Search', icon: 'search' }
+        ].map(({ page, label, icon }) => (
+          <button
+            className={`page-navigation-button${activePage === page ? ' active' : ''}`}
+            key={page}
+            type="button"
+            aria-current={activePage === page ? 'page' : undefined}
+            onClick={() => navigateToPage(page)}
+          >
+            {icon === 'list' ? (
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 6h12M8 12h12M8 18h12M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10.8" cy="10.8" r="6.8" />
+                <path d="m16 16 5 5" />
+              </svg>
+            )}
+            {label}
+          </button>
+        ))}
+      </nav>
     </main>
   );
 }

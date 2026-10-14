@@ -55,6 +55,7 @@ const locations = [
 
 describe('App forecast flow', () => {
   beforeEach(() => {
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#saved`);
     setGeolocationDenied();
     vi.stubGlobal('fetch', vi.fn(async (url) => {
       const requestUrl = new URL(url);
@@ -90,12 +91,103 @@ describe('App forecast flow', () => {
   it('falls back to Hamilton and renders the location with seven forecast rows', async () => {
     render(<App />);
 
+    expect(screen.getByRole('region', { name: 'Saved places' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Search' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Saved' })).toHaveAttribute('aria-current', 'page');
     expect(await screen.findByRole('heading', { name: 'Hamilton' })).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('q=Hamilton'),
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(screen.getAllByRole('button', { name: /chance of rain/ })).toHaveLength(7);
+  });
+
+  it('opens the Search page from the navigation pill and syncs the hash', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Hamilton' });
+
+    const pager = screen.getByLabelText('Weather app pages');
+    Object.defineProperty(pager, 'clientWidth', { configurable: true, value: 400 });
+    pager.scrollTo = vi.fn(({ left }) => {
+      pager.scrollLeft = left;
+      pager.dispatchEvent(new Event('scroll'));
+    });
+
+    const navigation = within(screen.getByRole('navigation', { name: 'Weather pages' }));
+    await user.click(navigation.getByRole('button', { name: 'Search' }));
+
+    expect(pager.scrollTo).toHaveBeenCalledWith({ left: 400, behavior: 'smooth' });
+    await waitFor(() => {
+      expect(navigation.getByRole('button', { name: 'Search' })).toHaveAttribute('aria-current', 'page');
+      expect(window.location.hash).toBe('#search');
+    });
+  });
+
+  it('uses the search hash to choose the initial page', async () => {
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}#search`);
+    render(<App />);
+
+    expect(within(screen.getByRole('navigation', { name: 'Weather pages' }))
+      .getByRole('button', { name: 'Search' })).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByRole('heading', { name: 'Hamilton' })).toBeInTheDocument();
+  });
+
+  it('uses arrow keys to switch pages when focus is outside a text field', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Hamilton' });
+    const pager = screen.getByLabelText('Weather app pages');
+    Object.defineProperty(pager, 'clientWidth', { configurable: true, value: 400 });
+    pager.scrollTo = vi.fn(({ left }) => {
+      pager.scrollLeft = left;
+      pager.dispatchEvent(new Event('scroll'));
+    });
+
+    await user.keyboard('{ArrowRight}');
+
+    expect(pager.scrollTo).toHaveBeenCalledWith({ left: 400, behavior: 'smooth' });
+    expect(within(screen.getByRole('navigation', { name: 'Weather pages' }))
+      .getByRole('button', { name: 'Search' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('updates navigation and the hash when the user swipes between pages', async () => {
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Hamilton' });
+    const pager = screen.getByLabelText('Weather app pages');
+    Object.defineProperty(pager, 'clientWidth', { configurable: true, value: 400 });
+
+    pager.scrollLeft = 400;
+    pager.dispatchEvent(new Event('scroll'));
+
+    await waitFor(() => {
+      expect(within(screen.getByRole('navigation', { name: 'Weather pages' }))
+        .getByRole('button', { name: 'Search' })).toHaveAttribute('aria-current', 'page');
+      expect(window.location.hash).toBe('#search');
+    });
+  });
+
+  it('restores the previous page with browser history navigation', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Hamilton' });
+    const pager = screen.getByLabelText('Weather app pages');
+    Object.defineProperty(pager, 'clientWidth', { configurable: true, value: 400 });
+    pager.scrollTo = vi.fn(({ left }) => {
+      pager.scrollLeft = left;
+      pager.dispatchEvent(new Event('scroll'));
+    });
+
+    await user.click(within(screen.getByRole('navigation', { name: 'Weather pages' }))
+      .getByRole('button', { name: 'Search' }));
+    await waitFor(() => expect(window.location.hash).toBe('#search'));
+    window.history.back();
+
+    await waitFor(() => {
+      expect(window.location.hash).toBe('#saved');
+      expect(within(screen.getByRole('navigation', { name: 'Weather pages' }))
+        .getByRole('button', { name: 'Saved' })).toHaveAttribute('aria-current', 'page');
+    });
   });
 
   it('searches for Wellington and renders its response', async () => {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import forecast from './fixtures/forecast.json';
-import { fetchForecast, searchLocations } from '../api.js';
+import { fetchCurrentMany, fetchForecast, searchLocations } from '../api.js';
 
 describe('fetchForecast', () => {
   beforeEach(() => {
@@ -92,5 +92,25 @@ describe('fetchForecast', () => {
     fetch.mockRejectedValue(abortError);
 
     await expect(fetchForecast('Hamilton')).rejects.toBe(abortError);
+  });
+
+  it('fetches current weather with repeated latitude and longitude parameters', async () => {
+    const signal = new AbortController().signal;
+    fetch.mockResolvedValue(new Response('[]', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    }));
+
+    await fetchCurrentMany([
+      { lat: -37.78, lng: 175.28 },
+      { lat: -41.29, lng: 174.78 }
+    ], signal);
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '/api/current?lat=-37.78&lng=175.28&lat=-41.29&lng=174.78'
+      ),
+      { signal }
+    );
   });
 });
