@@ -5,10 +5,16 @@ import httpx
 import respx
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import app, parse_allowed_origins
 
 client = TestClient(app)
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def test_parse_allowed_origins_trims_spaces_and_ignores_empty_entries():
+    assert parse_allowed_origins(
+        " https://weather.example.com, , http://localhost:5173, "
+    ) == ["https://weather.example.com", "http://localhost:5173"]
 
 
 def load(name):

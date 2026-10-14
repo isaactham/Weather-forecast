@@ -1,4 +1,6 @@
 #FastAPI app + /api/forecast route
+import os
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,11 +21,21 @@ from app.forecast import (
 )
 from app.models import CurrentSummary, LocationOption
 
+
+def parse_allowed_origins(value: str) -> list[str]:
+    return [origin.strip() for origin in value.split(",") if origin.strip()]
+
+
+# The same code must allow localhost in development and the deployed site in production.
+ALLOWED_ORIGINS = parse_allowed_origins(
+    os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+)
+
 app = FastAPI(title="Weather App")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET"],
     allow_headers=["*"],
 )
