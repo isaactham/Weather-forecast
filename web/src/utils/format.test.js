@@ -26,10 +26,16 @@ describe('weather formatting', () => {
       lat: -37.78,
       lng: 175.28
     })).toEqual({
-      city: 'Your location',
+      city: 'Unnamed location',
       region: '',
       coordinates: '−37.78°, 175.28°'
     });
+
+    expect(formatLocation({
+      name: '-37.78, 175.28',
+      lat: -37.78,
+      lng: 175.28
+    }, true).city).toBe('Your location');
   });
 
   it('rounds values and shows an en dash for null data', () => {

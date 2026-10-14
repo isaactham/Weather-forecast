@@ -232,7 +232,7 @@ function App() {
       (position) => {
         setUsedCurrentLocation(true);
         setIsDetailOpen(false);
-        // The backend parser already accepts coordinate queries, so no backend change is needed.
+        // The backend reverse-geocodes these coordinates while fetching the forecast.
         setQuery(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
       },
       () => {
@@ -259,7 +259,7 @@ function App() {
     const request = typeof query === 'string' ? { q: query } : query;
     fetchForecast(request.q, controller.signal)
       .then((forecast) => {
-        // Coordinate lookups identify the exact place but return no human-readable label.
+        // Preserve the exact label selected from the disambiguation list.
         setData(request.label
           ? { ...forecast, location: { ...forecast.location, name: request.label } }
           : forecast);
@@ -278,7 +278,7 @@ function App() {
 
   const forecast = data;
   const today = forecast?.days?.[0];
-  const location = forecast ? formatLocation(forecast.location) : null;
+  const location = forecast ? formatLocation(forecast.location, usedCurrentLocation) : null;
   const conditionOverride = new URLSearchParams(window.location.search).get('condition');
   const condition = conditionFromWeatherData(forecast, conditionOverride);
   const locationDate = today ? formatLocationDate(today.date) : '';

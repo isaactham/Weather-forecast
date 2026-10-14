@@ -3,7 +3,13 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.parser import parse_query
-from app.geocoding import geocode, search_locations, GeocodingError, LocationNotFoundError
+from app.geocoding import (
+    geocode,
+    reverse_geocode,
+    search_locations,
+    GeocodingError,
+    LocationNotFoundError,
+)
 from app.forecast import fetch_forecast, build_current, build_days, WeatherServiceError
 from app.models import LocationOption
 
@@ -47,11 +53,14 @@ def get_forecast(q: str = Query(..., description="A place name or coodinates lik
 
     try:
         if parsed["type"] == "coords":
-            location = {
-                "name": f"{parsed['lat']}, {parsed['lng']}",
-                "lat": parsed["lat"],
-                "lng": parsed["lng"],
-            }
+            lat, lng = parsed["lat"], parsed["lng"]
+            try:
+                location = reverse_geocode(lat, lng)
+            except GeocodingError:
+                location = None
+            if location is None:
+                # The forecast is the important part; a missing place name shouldn't return a 502.
+                location = {"name": f"{lat}, {lng}", "lat": lat, "lng": lng}
         else:
             location = geocode(parsed["query"])
 

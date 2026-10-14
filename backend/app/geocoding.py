@@ -1,8 +1,16 @@
 # Open-Meteo / Nominatim lookups
 
+import os
+from functools import lru_cache
+
 import httpx
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
+REVERSE_GEOCODING_URL = "https://nominatim.openstreetmap.org/reverse"
+NOMINATIM_USER_AGENT = os.getenv(
+    "NOMINATIM_USER_AGENT",
+    "WeatherForecastDemo/1.0 (github.com/isaactham/Weather-forecast)",
+)
 
 class GeocodingError(Exception):
     """Raised when the geocoding service can't be reached or returns an error."""
@@ -66,3 +74,64 @@ def geocode(query: str) -> dict:
         "lat": location["lat"],
         "lng": location["lng"],
     }
+
+
+@lru_cache(maxsize=256)
+def _reverse_geocode_cached(lat: float, lng: float) -> str | None:
+    # Nominatim asks clients to cache results and stay below one request per second;
+    # repeated searches often use the same location.
+    params = {
+        "lat": lat,
+        "lon": lng,
+        "format": "jsonv2",
+        "zoom": 10,
+        "addressdetails": 1,
+        "accept-language": "en",
+    }
+
+    try:
+        # Nominatim's usage policy requires requests to identify the application.
+        response = httpx.get(
+            REVERSE_GEOCODING_URL,
+            params=params,
+            headers={"User-Agent": NOMINATIM_USER_AGENT},
+            timeout=5,
+        )
+        response.raise_for_status()
+    except httpx.HTTPError as error:
+        raise GeocodingError("Geocoding service is unavailable") from error
+
+    try:
+        data = response.json()
+    except ValueError as error:
+        raise GeocodingError("Geocoding service returned an invalid response") from error
+
+    if not isinstance(data, dict) or data.get("error"):
+        return None
+
+    address = data.get("address")
+    if not isinstance(address, dict):
+        return None
+
+    city = next(
+        (
+            address[key]
+            for key in ("city", "town", "village", "suburb", "municipality", "county")
+            if address.get(key)
+        ),
+        None,
+    )
+    region = address.get("state")
+    country = address.get("country")
+    if not any((city, region, country)):
+        return None
+
+    return format_name({"name": city, "admin1": region, "country": country})
+
+
+def reverse_geocode(lat: float, lng: float) -> dict | None:
+    name = _reverse_geocode_cached(round(lat, 3), round(lng, 3))
+    if name is None:
+        return None
+
+    return {"name": name, "lat": lat, "lng": lng}

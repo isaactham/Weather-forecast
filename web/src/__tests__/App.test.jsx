@@ -236,6 +236,63 @@ describe('App forecast flow', () => {
     expect(fetch.mock.calls.some(([url]) => String(url).includes('/api/locations'))).toBe(false);
   });
 
+  it('shows a reverse-geocoded name for typed coordinate searches', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Hamilton' });
+
+    fetch.mockResolvedValueOnce(jsonResponse({
+      ...forecast,
+      location: { name: 'Hamilton, Waikato, New Zealand', lat: -37.78, lng: 175.28 }
+    }));
+    const search = screen.getByRole('combobox');
+    await user.clear(search);
+    await user.type(search, '-37.78, 175.28');
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByRole('heading', { name: 'Hamilton' })).toBeInTheDocument();
+    expect(screen.getByText('Waikato, New Zealand')).toBeInTheDocument();
+  });
+
+  it('shows Unnamed location when typed coordinates have no reverse-geocoded name', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Hamilton' });
+
+    fetch.mockResolvedValueOnce(jsonResponse({
+      ...forecast,
+      location: { name: '20.0, 90.0', lat: 20, lng: 90 }
+    }));
+    const search = screen.getByRole('combobox');
+    await user.clear(search);
+    await user.type(search, '20, 90');
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByRole('heading', { name: 'Unnamed location' })).toBeInTheDocument();
+  });
+
+  it('keeps Your location for a coordinate-only current-location response', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Hamilton' });
+
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (success) => success({
+          coords: { latitude: -37.78, longitude: 175.28 }
+        })
+      }
+    });
+    fetch.mockResolvedValueOnce(jsonResponse({
+      ...forecast,
+      location: { name: '-37.78, 175.28', lat: -37.78, lng: 175.28 }
+    }));
+    await user.click(screen.getByRole('button', { name: 'Use my current location' }));
+
+    expect(await screen.findByRole('heading', { name: 'Your location' })).toBeInTheDocument();
+  });
+
   it('supports ArrowDown and Enter to select, and Escape to close', async () => {
     const user = userEvent.setup();
     render(<App />);

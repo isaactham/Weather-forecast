@@ -34,12 +34,12 @@ export function isCoordinates(value) {
   return /^\s*-?\d+(?:\.\d+)?(?:\s*,\s*|\s+)-?\d+(?:\.\d+)?\s*$/.test(value);
 }
 
-export function formatLocation(location) {
+export function formatLocation(location, isCurrentLocation = false) {
   const name = location.name.trim();
   const coordinates = isCoordinates(name);
   const [city = '', ...regionParts] = name.split(',');
   return {
-    city: coordinates ? 'Your location' : city.trim(),
+    city: coordinates ? (isCurrentLocation ? 'Your location' : 'Unnamed location') : city.trim(),
     region: coordinates ? '' : regionParts.join(',').trim(),
     coordinates: formatCoordinates(location)
   };

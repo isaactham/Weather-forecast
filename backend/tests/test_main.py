@@ -19,6 +19,10 @@ def mock_geocoding(response):
     return respx.get(host="geocoding-api.open-meteo.com", path="/v1/search").mock(return_value=response)
 
 
+def mock_reverse_geocoding(response):
+    return respx.get(host="nominatim.openstreetmap.org", path="/reverse").mock(return_value=response)
+
+
 def mock_forecast(response):
     return respx.get(host="api.open-meteo.com", path="/v1/forecast").mock(return_value=response)
 
@@ -37,14 +41,53 @@ def test_place_name_returns_location_and_seven_days():
 
 
 @respx.mock
-def test_coordinates_skip_geocoding():
+def test_coordinates_skip_forward_geocoding():
+    forward_geocoding = respx.get(
+        host="geocoding-api.open-meteo.com", path="/v1/search"
+    ).mock(return_value=httpx.Response(200, json={}))
+    mock_reverse_geocoding(httpx.Response(200, json={"error": "Unable to geocode"}))
     mock_forecast(httpx.Response(200, json=load("daily_hamilton.json")))
-    # no geocoding mock: if the route tried to geocode, respx would fail the test
 
     response = client.get("/api/forecast", params={"q": "-37.78, 175.28"})
 
     assert response.status_code == 200
     assert response.json()["location"]["lat"] == -37.78
+    assert forward_geocoding.call_count == 0
+
+
+@respx.mock
+def test_coordinates_use_reverse_geocoded_place_name():
+    mock_reverse_geocoding(httpx.Response(200, json={
+        "address": {"city": "Hamilton", "state": "Waikato", "country": "New Zealand"}
+    }))
+    mock_forecast(httpx.Response(200, json=load("daily_hamilton.json")))
+
+    response = client.get("/api/forecast", params={"q": "-37.787, 175.279"})
+
+    assert response.status_code == 200
+    assert response.json()["location"]["name"] == "Hamilton, Waikato, New Zealand"
+
+
+@respx.mock
+def test_coordinates_fall_back_to_coordinates_when_reverse_geocode_finds_nothing():
+    mock_reverse_geocoding(httpx.Response(200, json={"error": "Unable to geocode"}))
+    mock_forecast(httpx.Response(200, json=load("daily_hamilton.json")))
+
+    response = client.get("/api/forecast", params={"q": "20, 90"})
+
+    assert response.status_code == 200
+    assert response.json()["location"]["name"] == "20.0, 90.0"
+
+
+@respx.mock
+def test_coordinates_still_return_forecast_when_reverse_geocoding_fails():
+    mock_reverse_geocoding(httpx.Response(500))
+    mock_forecast(httpx.Response(200, json=load("daily_hamilton.json")))
+
+    response = client.get("/api/forecast", params={"q": "-37.78, 175.28"})
+
+    assert response.status_code == 200
+    assert response.json()["location"]["name"] == "-37.78, 175.28"
 
 
 def test_empty_query_returns_400():

@@ -49,8 +49,13 @@ Weather codes:
 - Errors mapped to status codes: 400 bad input, 404 place not found,
   502 upstream service down. The frontend can show a specific message for each.
 - Parsing has its own try block so only parser ValueErrors become 400s.
-- Coordinates skip geocoding: saves an API call, and builds the same location
-  shape so the rest of the route doesn't care which path was taken.
+- Reverse geocoding uses Nominatim because Open-Meteo has no reverse lookup.
+- Results are cached by rounded coordinates and requests send an identifying
+  User-Agent, as Nominatim's usage policy requires.
+- Reverse geocoding failure falls back to showing coordinates instead of failing
+  the request, because the forecast matters more than the label.
+- The original coordinates are kept, not Nominatim's snapped point, so the
+  forecast is for exactly where the user asked.
 - CORS allows only the local frontend origin and GET requests (least access needed).
 - Route tests use FastAPI's TestClient with both APIs mocked by respx, covering
   each status code.

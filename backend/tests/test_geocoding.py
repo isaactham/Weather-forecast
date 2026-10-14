@@ -6,8 +6,10 @@ import pytest
 import respx
 
 from app.geocoding import (
+    NOMINATIM_USER_AGENT,
     geocode,
     format_name,
+    reverse_geocode,
     search_locations,
     GeocodingError,
     LocationNotFoundError,
@@ -114,3 +116,89 @@ def test_format_name_with_all_parts():
 def test_format_name_skips_missing_region():
     result = {"name": "Monaco", "country": "Monaco"}
     assert format_name(result) == "Monaco, Monaco"
+
+
+@respx.mock
+def test_reverse_geocode_returns_city_and_original_coordinates():
+    respx.get(host="nominatim.openstreetmap.org", path="/reverse").mock(
+        return_value=httpx.Response(200, json={
+            "address": {
+                "city": "Hamilton",
+                "state": "Waikato",
+                "country": "New Zealand",
+            }
+        })
+    )
+
+    result = reverse_geocode(-37.787123, 175.279456)
+
+    assert result == {
+        "name": "Hamilton, Waikato, New Zealand",
+        "lat": -37.787123,
+        "lng": 175.279456,
+    }
+
+
+@respx.mock
+def test_reverse_geocode_uses_town_when_city_is_missing():
+    respx.get(host="nominatim.openstreetmap.org", path="/reverse").mock(
+        return_value=httpx.Response(200, json={
+            "address": {"town": "Cambridge", "state": "Waikato", "country": "New Zealand"}
+        })
+    )
+
+    assert reverse_geocode(-37.89, 175.47)["name"] == "Cambridge, Waikato, New Zealand"
+
+
+@respx.mock
+def test_reverse_geocode_returns_none_when_nominatim_finds_nothing():
+    respx.get(host="nominatim.openstreetmap.org", path="/reverse").mock(
+        return_value=httpx.Response(200, json={"error": "Unable to geocode"})
+    )
+
+    assert reverse_geocode(20, 90) is None
+
+
+@respx.mock
+def test_reverse_geocode_server_error_raises_geocoding_error():
+    respx.get(host="nominatim.openstreetmap.org", path="/reverse").mock(
+        return_value=httpx.Response(500)
+    )
+
+    with pytest.raises(GeocodingError):
+        reverse_geocode(-37.787, 175.279)
+
+
+@respx.mock
+def test_reverse_geocode_sends_user_agent_and_expected_parameters():
+    route = respx.get(host="nominatim.openstreetmap.org", path="/reverse").mock(
+        return_value=httpx.Response(200, json={"address": {"city": "Hamilton"}})
+    )
+
+    reverse_geocode(-37.787, 175.279)
+
+    request = route.calls[0].request
+    assert request.headers["User-Agent"] == NOMINATIM_USER_AGENT
+    assert dict(request.url.params) == {
+        "lat": "-37.787",
+        "lon": "175.279",
+        "format": "jsonv2",
+        "zoom": "10",
+        "addressdetails": "1",
+        "accept-language": "en",
+    }
+
+
+@respx.mock
+def test_reverse_geocode_caches_repeated_coordinates():
+    route = respx.get(host="nominatim.openstreetmap.org", path="/reverse").mock(
+        return_value=httpx.Response(200, json={"address": {"city": "Hamilton"}})
+    )
+
+    first = reverse_geocode(-37.7871, 175.2791)
+    second = reverse_geocode(-37.7872, 175.2792)
+
+    assert first["name"] == second["name"]
+    assert first["lat"] == -37.7871
+    assert second["lat"] == -37.7872
+    assert route.call_count == 1
