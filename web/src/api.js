@@ -1,10 +1,9 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-export async function fetchForecast(query, signal) {
+async function getJson(url, signal) {
   let response;
 
   try {
-    const url = `${API_URL}/api/forecast?q=${encodeURIComponent(query)}`;
     response = await fetch(url, { signal });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
@@ -32,4 +31,12 @@ export async function fetchForecast(query, signal) {
   }
 
   return response.json();
+}
+
+export function fetchForecast(query, signal) {
+  return getJson(`${API_URL}/api/forecast?q=${encodeURIComponent(query)}`, signal);
+}
+
+export function searchLocations(query, signal) {
+  return getJson(`${API_URL}/api/locations?q=${encodeURIComponent(query)}`, signal);
 }

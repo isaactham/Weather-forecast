@@ -79,3 +79,12 @@ Weather codes:
 - Current-location searches send coordinates to the same forecast endpoint because the backend parser already accepts coordinates.
 - CORS is restricted to the local frontend origins; a Vite development proxy was considered as an alternative.
 - Local calendar dates are parsed with a local midnight rather than UTC so they do not shift to the previous or next day across time zones.
+
+## Location disambiguation
+
+- A separate `/api/locations` endpoint lets the search UI show choices, while `/api/forecast` stays simple and unchanged.
+- No matches return HTTP 200 with an empty list because nothing found is a normal search result, not an error.
+- The chosen place is loaded by coordinates so the user gets exactly the place they picked, not the top match again.
+- The option's label is kept for display because a coordinates lookup has no place name.
+- Single matches skip the dropdown so the common case stays one step.
+- The dropdown follows the ARIA combobox pattern so it works with a keyboard and screen readers.

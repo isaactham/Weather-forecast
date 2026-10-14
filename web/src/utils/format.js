@@ -30,13 +30,17 @@ export function formatCoordinates(location) {
   return `${formatCoordinate(location.lat)}, ${formatCoordinate(location.lng)}`;
 }
 
+export function isCoordinates(value) {
+  return /^\s*-?\d+(?:\.\d+)?(?:\s*,\s*|\s+)-?\d+(?:\.\d+)?\s*$/.test(value);
+}
+
 export function formatLocation(location) {
   const name = location.name.trim();
-  const isCoordinates = /^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(name);
+  const coordinates = isCoordinates(name);
   const [city = '', ...regionParts] = name.split(',');
   return {
-    city: isCoordinates ? 'Your location' : city.trim(),
-    region: isCoordinates ? '' : regionParts.join(',').trim(),
+    city: coordinates ? 'Your location' : city.trim(),
+    region: coordinates ? '' : regionParts.join(',').trim(),
     coordinates: formatCoordinates(location)
   };
 }
