@@ -87,6 +87,15 @@ describe('App forecast flow', () => {
         }]);
         return jsonResponse([]);
       }
+      if (query?.includes(',')) {
+        const [lat, lng] = query.split(',').map(Number);
+        return jsonResponse({
+          ...forecast,
+          location: lat === -37.78 && lng === 175.28
+            ? forecast.location
+            : { name: `${lat}, ${lng}`, lat, lng }
+        });
+      }
       if (query === 'Wellington') {
         return jsonResponse({
           ...forecast,
@@ -300,6 +309,69 @@ describe('App forecast flow', () => {
     expect(JSON.parse(localStorage.getItem('weather.savedPlaces.v1'))).toEqual([]);
     expect(await screen.findByText('Removed Wellington')).toBeInTheDocument();
     expect(within(savedRegion).queryByRole('button', { name: 'Done' })).not.toBeInTheDocument();
+  });
+
+  it('opens a saved place in Search with its saved name and Saved state', async () => {
+    localStorage.setItem('weather.savedPlaces.v1', JSON.stringify([{
+      id: '-41.290,174.780',
+      name: 'Wellington, New Zealand',
+      lat: -41.29,
+      lng: 174.78,
+      savedAt: '2026-10-14T00:00:00Z'
+    }]));
+    const user = userEvent.setup();
+    render(<App />);
+    const savedRegion = screen.getByRole('region', { name: 'Saved places' });
+
+    const placeCard = await within(savedRegion).findByRole('button', {
+      name: /Wellington, 19 degrees, Partly cloudy/
+    });
+    const pager = screen.getByLabelText('Weather app pages');
+    Object.defineProperty(pager, 'clientWidth', { configurable: true, value: 400 });
+    pager.scrollTo = vi.fn(({ left }) => {
+      pager.scrollLeft = left;
+      pager.dispatchEvent(new Event('scroll'));
+    });
+
+    await user.click(placeCard);
+
+    expect(fetch).toHaveBeenLastCalledWith(
+      expect.stringContaining('q=-41.2900%2C%20174.7800'),
+      expect.anything()
+    );
+    expect(await screen.findByRole('heading', { name: 'Wellington' })).toHaveFocus();
+    expect(within(screen.getByRole('region', { name: 'Current location' }))
+      .getByRole('button', { name: 'Saved' })).toHaveAttribute('aria-pressed', 'true');
+    expect(pager.scrollTo).toHaveBeenCalledWith({ left: 400, behavior: 'smooth' });
+    expect(window.location.hash).toBe('#search');
+  });
+
+  it('opens My location in Search and marks it as current location', async () => {
+    const getCurrentPosition = vi.fn((success) => success({
+      coords: { latitude: -37.78, longitude: 175.28 }
+    }));
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition }
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    const savedRegion = screen.getByRole('region', { name: 'Saved places' });
+    const pager = screen.getByLabelText('Weather app pages');
+    pager.scrollTo = vi.fn();
+
+    const card = await within(savedRegion).findByRole('button', {
+      name: /Hamilton, 19 degrees, Partly cloudy/
+    });
+    await user.click(card);
+
+    expect(getCurrentPosition).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole('heading', { name: 'Hamilton' })).toHaveFocus();
+    expect(screen.getByText('⌖ Current location')).toBeInTheDocument();
+    expect(fetch).toHaveBeenLastCalledWith(
+      expect.stringContaining('q=-37.78%2C%20175.28'),
+      expect.anything()
+    );
   });
 
   it('shows the empty state below My location and focuses Search from its button', async () => {

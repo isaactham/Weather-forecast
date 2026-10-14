@@ -147,6 +147,9 @@ function App() {
   const startupLocationRequested = useRef(false);
   const lookupController = useRef(null);
   const searchContainer = useRef(null);
+  const searchScroll = useRef(null);
+  const cityHeading = useRef(null);
+  const focusHeadingAfterForecast = useRef(false);
   const pager = useRef(null);
   const scrollFrame = useRef(null);
   const toastTimer = useRef(null);
@@ -299,13 +302,24 @@ function App() {
     showToast(`Removed ${place.name.split(',')[0]}`);
   }, [savedPlaces, showToast]);
 
-  const openMyLocation = useCallback(() => {
-    if (myLocation.status !== 'ready') return;
-    setUsedCurrentLocation(true);
+  const openSavedPlace = useCallback((place) => {
+    lookupController.current?.abort();
+    lookupController.current = null;
+    setIsSearching(false);
+    setSearchMessage('');
+    setSearchText(place.name);
+    closeDropdown();
+    setUsedCurrentLocation(false);
     setIsDetailOpen(false);
-    setQuery(`${myLocation.lat.toFixed(4)}, ${myLocation.lng.toFixed(4)}`);
+    setStatus('loading');
+    focusHeadingAfterForecast.current = true;
+    if (searchScroll.current) searchScroll.current.scrollTop = 0;
+    setQuery({
+      q: `${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}`,
+      label: place.name
+    });
     navigateToPage('search');
-  }, [myLocation, navigateToPage]);
+  }, [closeDropdown, navigateToPage]);
 
   const focusSearch = useCallback(() => {
     navigateToPage('search');
@@ -357,7 +371,7 @@ function App() {
         setUsedCurrentLocation(true);
         setIsDetailOpen(false);
         // The backend reverse-geocodes these coordinates while fetching the forecast.
-        setQuery(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        setQuery({ q: `${latitude}, ${longitude}` });
       },
       (error) => {
         setUsedCurrentLocation(false);
@@ -371,6 +385,15 @@ function App() {
       { timeout: 8000 }
     );
   }, [closeDropdown]);
+
+  const openMyLocation = useCallback(() => {
+    if (myLocation.status !== 'ready') return;
+    setStatus('loading');
+    focusHeadingAfterForecast.current = true;
+    if (searchScroll.current) searchScroll.current.scrollTop = 0;
+    loadCurrentLocation();
+    navigateToPage('search');
+  }, [loadCurrentLocation, myLocation.status, navigateToPage]);
 
   useEffect(() => {
     if (startupLocationRequested.current) return;
@@ -484,6 +507,12 @@ function App() {
     return () => controller.abort();
   }, [query, retryCount]);
 
+  useEffect(() => {
+    if (status !== 'success' || !focusHeadingAfterForecast.current) return;
+    cityHeading.current?.focus();
+    focusHeadingAfterForecast.current = false;
+  }, [status, data]);
+
   const isMyLocationReady = myLocation.status === 'ready';
   const currentDashboardCoords = useMemo(() => [
     ...(isMyLocationReady ? [{ lat: myLocation.lat, lng: myLocation.lng }] : []),
@@ -583,12 +612,13 @@ function App() {
           editMode={editMode}
           onToggleEdit={() => setEditMode((editing) => !editing)}
           onRemove={removeSavedPlace}
+          onOpenPlace={openSavedPlace}
           onRetry={() => setDashboardRetry((count) => count + 1)}
           onLocate={loadCurrentLocation}
           onOpenMyLocation={openMyLocation}
           onSearch={focusSearch}
         />
-        <section className="pager-page app-scroll" id="search" aria-label="Search">
+        <section className="pager-page app-scroll" id="search" aria-label="Search" ref={searchScroll}>
           <div className="home-content">
           <SearchBar
             searchText={searchText}
@@ -613,7 +643,7 @@ function App() {
           )}
           {forecast && status === 'loading' && (
             <p className="loading-banner" role="status" aria-live="polite">
-              Loading forecast for {typeof query === 'string' ? query : query.label}…
+              Loading forecast for {typeof query === 'string' ? query : query.label ?? query.q}…
             </p>
           )}
           {status === 'error' && (
@@ -643,6 +673,7 @@ function App() {
                 canSave={Boolean(forecast && status !== 'loading')}
                 isSaved={forecast ? isSaved(savedPlaces, forecast.location.lat, forecast.location.lng) : false}
                 onToggleSaved={toggleSavedPlace}
+                cityHeadingRef={cityHeading}
               />
               {saveMessage && <p className="save-limit-message" role="status">{saveMessage}</p>}
               <Hero

@@ -8,7 +8,8 @@ export function LocationHeader({
   isCurrentLocation = false,
   canSave = false,
   isSaved = false,
-  onToggleSaved
+  onToggleSaved,
+  cityHeadingRef
 }) {
   return (
     <section className="location-block" aria-label="Current location">
@@ -31,7 +32,7 @@ export function LocationHeader({
         </div>
         <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />
       </div>
-      <h1 className="city-name">{location.city}</h1>
+      <h1 className="city-name" ref={cityHeadingRef} tabIndex={-1}>{location.city}</h1>
       {location.region && <p className="suburb">{location.region}</p>}
       <p className="coordinates">
         {location.coordinates}{date ? ` · ${date}` : ''}

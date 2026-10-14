@@ -148,6 +148,7 @@
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
   scrollbar-width: none;
 }
 
@@ -363,6 +364,7 @@
   background: transparent;
   text-align: left;
   cursor: pointer;
+  transition: transform 320ms cubic-bezier(.22, .75, .25, 1);
 }
 
 .saved-place-open:active:not(:disabled) {
@@ -807,6 +809,10 @@
 
   .saved-place-open:active:not(:disabled) {
     transform: none;
+  }
+
+  .saved-place-open {
+    transition: none;
   }
 }
 

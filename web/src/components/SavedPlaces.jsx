@@ -46,7 +46,7 @@ function PlaceCard({
         className="saved-place-open"
         type="button"
         aria-label={`${city}${weather?.temperature != null ? `, ${formatTemperature(weather.temperature).replace('°', '')} degrees` : ''}${weather?.summary ? `, ${weather.summary}` : ''}. Open forecast.`}
-        onClick={isMyLocation ? onOpen : undefined}
+        onClick={onOpen}
         disabled={editMode}
       >
         <span className="saved-place-top">
@@ -101,6 +101,7 @@ export function SavedPlaces({
   editMode,
   onToggleEdit,
   onRemove,
+  onOpenPlace,
   onRetry,
   onLocate,
   onOpenMyLocation,
@@ -154,6 +155,7 @@ export function SavedPlaces({
               weather={weatherById[place.id]}
               isLoading={isLoading}
               editMode={editMode}
+              onOpen={() => onOpenPlace(place)}
               onRemove={() => onRemove(place)}
             />
           ))}
