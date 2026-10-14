@@ -74,3 +74,41 @@ def test_forecast_service_down_returns_502():
     response = client.get("/api/forecast", params={"q": "Hamilton"})
 
     assert response.status_code == 502
+
+
+@respx.mock
+def test_locations_returns_matches():
+    fixture = load("geocode_hamilton_multi.json")
+    mock_geocoding(httpx.Response(200, json=fixture))
+
+    response = client.get("/api/locations", params={"q": "Hamilton"})
+
+    assert response.status_code == 200
+    assert len(response.json()) == 8
+    assert response.json()[0]["label"] == "Hamilton, Ontario, Canada"
+
+
+@respx.mock
+def test_locations_returns_empty_list_for_no_matches():
+    mock_geocoding(httpx.Response(200, json={}))
+
+    response = client.get("/api/locations", params={"q": "asdfghjkl"})
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_locations_rejects_whitespace_query():
+    response = client.get("/api/locations", params={"q": "   "})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Please enter a place to search."
+
+
+@respx.mock
+def test_locations_returns_502_when_geocoding_fails():
+    mock_geocoding(httpx.Response(500))
+
+    response = client.get("/api/locations", params={"q": "Hamilton"})
+
+    assert response.status_code == 502

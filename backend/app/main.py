@@ -3,8 +3,9 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.parser import parse_query
-from app.geocoding import geocode, GeocodingError, LocationNotFoundError
+from app.geocoding import geocode, search_locations, GeocodingError, LocationNotFoundError
 from app.forecast import fetch_forecast, build_current, build_days, WeatherServiceError
+from app.models import LocationOption
 
 app = FastAPI(title="Weather App")
 
@@ -19,6 +20,21 @@ app.add_middleware(
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/locations", response_model=list[LocationOption])
+def get_locations(q: str = Query(..., description="A place name to search")):
+    if not q.strip():
+        raise HTTPException(status_code=400, detail="Please enter a place to search.")
+
+    try:
+        # No matches are a normal search result; the frontend displays its own message.
+        return search_locations(q)
+    except GeocodingError:
+        raise HTTPException(
+            status_code=502,
+            detail="The weather service is unavailable right now. Please try again shortly",
+        )
 
 
 #GET request comes to this address

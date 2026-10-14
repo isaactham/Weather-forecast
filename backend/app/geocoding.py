@@ -22,31 +22,47 @@ def format_name(result: dict) -> str:
 
     return ", ".join(present)
 
-def geocode(query: str) -> dict:
-    params = {"name": query, "count": 1}
-    
-    # TODO 1: call httpx.get with a timeout, raise_for_status,
-    #         wrap httpx.HTTPError in GeocodingError (same as fetch_forecast)
+
+def search_locations(query: str, count: int = 8) -> list[dict]:
+    params = {"name": query, "count": count}
 
     try:
-        response = httpx.get(GEOCODING_URL, params= params, timeout= 10)
+        response = httpx.get(GEOCODING_URL, params=params, timeout=10)
         response.raise_for_status()
     except httpx.HTTPError as error:
         raise GeocodingError("Geocoding service is unavailable") from error
 
-    # TODO 2: get the results list. If it's missing or empty,
-    #         raise LocationNotFoundError
+    results = response.json().get("results", [])
+    locations = []
+    seen = set()
 
-    data = response.json()
-    results = data.get("results", [])
-    if not results:
+    for result in results:
+        key = (result.get("name"), result.get("admin1"), result.get("country"))
+        if key in seen:
+            continue
+        seen.add(key)
+        locations.append({
+            "id": result["id"],
+            "name": result["name"],
+            "region": result.get("admin1"),
+            "country": result.get("country"),
+            "countryCode": result.get("country_code"),
+            "lat": result["latitude"],
+            "lng": result["longitude"],
+            "label": format_name(result),
+        })
+
+    return locations
+
+
+def geocode(query: str) -> dict:
+    locations = search_locations(query, count=1)
+    if not locations:
         raise LocationNotFoundError("Location Not Found")
 
-    # TODO 3: take the first result and return {"name": ..., "lat": ..., "lng": ...}
-    place = results[0]
+    location = locations[0]
     return {
-        "name": format_name(place),
-        "lat": place["latitude"],
-        "lng": place["longitude"]
+        "name": location["label"],
+        "lat": location["lat"],
+        "lng": location["lng"],
     }
-    
