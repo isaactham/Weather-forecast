@@ -40,8 +40,22 @@ npm test -- --run
 
 The browser loads the React app from Vite. The app sends
 `GET /api/forecast?q=<place-or-coordinates>` to FastAPI. FastAPI parses the
-query, geocodes place names, and fetches current and daily weather from
-Open-Meteo. Coordinate searches skip geocoding because the parser already
-recognizes coordinates. FastAPI reshapes the result into JSON and returns it
-to React, where the location, hero, stat cards, temperature chart, forecast
-list, and day-detail sheet display the data.
+query, geocodes place names, reverse-geocodes coordinates for a display name,
+and fetches current and daily weather from Open-Meteo. A reverse-geocoding
+failure does not block the forecast; the original coordinates are used as the
+location name instead. FastAPI reshapes the result into JSON and returns it to
+React, where the location, hero, stat cards, temperature chart, forecast list,
+and day-detail sheet display the data.
+
+The Saved places page stores up to 20 named places and their coordinates in
+browser local storage. It fetches current weather for saved places in one
+`GET /api/current` request when the page is shown and the last result is at
+least 10 minutes old, rather than storing weather that could become stale.
+Selecting a saved-place card opens that place in Search. My location is
+obtained from the browser's geolocation service and is not saved as a fixed
+place.
+
+The main frontend flow is in `web/src/App.jsx`; saved-place persistence and
+coordinate-based IDs are in `web/src/utils/savedPlaces.js`; the dashboard cards
+are in `web/src/components/SavedPlaces.jsx`. The backend's forecast and batch
+current-weather routes are in `backend/app/main.py`.

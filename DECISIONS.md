@@ -93,3 +93,12 @@ Weather codes:
 - The option's label is kept for display because a coordinates lookup has no place name.
 - Single matches skip the dropdown so the common case stays one step.
 - The dropdown follows the ARIA combobox pattern so it works with a keyboard and screen readers.
+
+## Saved places dashboard
+
+- Save place names and coordinates in browser local storage, but fetch weather again when the Saved page is shown so stored forecasts do not go stale.
+- Request current weather for saved places through one batch endpoint instead of making one request per card.
+- Identify duplicate saved places by coordinates rounded to three decimals, and cap the saved list at 20 places to keep the dashboard manageable.
+- Do not persist My location as a fixed saved place; request the device's current coordinates for the current session.
+- Open a saved card in Search using its saved label, so the dashboard choice remains recognizable even when the forecast request uses coordinates.
+- Keep Saved and Search as horizontal pages with URL hashes and browser history, so page navigation works with back/forward controls and direct links.
