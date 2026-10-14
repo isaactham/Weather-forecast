@@ -60,7 +60,7 @@ Weather codes:
 - `--emphasis` is a semantic token so orange stays limited to the four priority values in dark mode.
 - The sticky hero reads progress from one rAF-coalesced scroll callback through a CSS variable, avoiding per-scroll UI rerenders.
 - A themed content panel slides over the sticky hero while the higher-z-index sheet remains available above it.
-- The theme switch renders only its active icon, and ISO dates are formatted in UTC to prevent icon overlap and date drift.
+- The theme switch renders only its active icon, and ISO dates are parsed at local midnight to prevent date drift.
 
 ## Animated weather backgrounds
 
@@ -68,3 +68,14 @@ Weather codes:
 - Particle positions are deterministic and cached once so scenes remain stable and tests are reproducible.
 - Scene motion uses transform and opacity; reduced-motion mode freezes visible particles and suppresses lightning.
 - The `?condition=` override makes every weather scene demoable without changing the forecast data.
+
+## React API integration
+
+- The API base URL comes from `VITE_API_URL`, so deployment can change the service URL without a code change.
+- `fetch()` does not reject on HTTP 4xx/5xx responses, so `api.js` checks `response.ok` and surfaces the backend's `detail` message.
+- `AbortController` cancels stale requests so a slower earlier search cannot overwrite a newer search.
+- One `status` value (`idle`, `loading`, `success`, or `error`) represents request state instead of separate booleans, preventing contradictory states.
+- The previous successful forecast stays visible while another search is loading or after it fails, so the screen does not go blank.
+- Current-location searches send coordinates to the same forecast endpoint because the backend parser already accepts coordinates.
+- CORS is restricted to the local frontend origins; a Vite development proxy was considered as an alternative.
+- Local calendar dates are parsed with a local midnight rather than UTC so they do not shift to the previous or next day across time zones.
