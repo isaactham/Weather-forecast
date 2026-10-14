@@ -1,0 +1,91 @@
+{
+  "location": {
+    "name": "Hamilton, Waikato, New Zealand",
+    "lat": -37.78,
+    "lng": 175.28
+  },
+  "current": {
+    "temperature": 15.2,
+    "code": 61,
+    "summary": "Slight rain"
+  },
+  "days": [
+    {
+      "date": "2026-10-14",
+      "tempMax": 17.2,
+      "tempMin": 8.1,
+      "precipMm": 3.2,
+      "precipChance": 70,
+      "windMax": 22,
+      "uvMax": 3,
+      "code": 61,
+      "summary": "Slight rain"
+    },
+    {
+      "date": "2026-10-15",
+      "tempMax": 18.4,
+      "tempMin": 9.3,
+      "precipMm": 1.4,
+      "precipChance": 45,
+      "windMax": 19,
+      "uvMax": 4,
+      "code": 53,
+      "summary": "Moderate drizzle"
+    },
+    {
+      "date": "2026-10-16",
+      "tempMax": 19.1,
+      "tempMin": 10.2,
+      "precipMm": 0.2,
+      "precipChance": 20,
+      "windMax": 16,
+      "uvMax": 5,
+      "code": 3,
+      "summary": "Overcast"
+    },
+    {
+      "date": "2026-10-17",
+      "tempMax": 20.3,
+      "tempMin": 11.1,
+      "precipMm": 0,
+      "precipChance": 5,
+      "windMax": 14,
+      "uvMax": 6,
+      "code": 1,
+      "summary": "Mainly clear"
+    },
+    {
+      "date": "2026-10-18",
+      "tempMax": 21.1,
+      "tempMin": 12.4,
+      "precipMm": 0,
+      "precipChance": 0,
+      "windMax": 12,
+      "uvMax": 7,
+      "code": 0,
+      "summary": "Clear sky"
+    },
+    {
+      "date": "2026-10-19",
+      "tempMax": 20.6,
+      "tempMin": 11.8,
+      "precipMm": 0.5,
+      "precipChance": 15,
+      "windMax": 18,
+      "uvMax": 5,
+      "code": 2,
+      "summary": "Partly cloudy"
+    },
+    {
+      "date": "2026-10-20",
+      "tempMax": 18.9,
+      "tempMin": 10.5,
+      "precipMm": 2.1,
+      "precipChance": 55,
+      "windMax": 24,
+      "uvMax": 3,
+      "code": 61,
+      "summary": "Slight rain"
+    }
+  ]
+}
