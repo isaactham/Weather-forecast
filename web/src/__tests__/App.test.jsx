@@ -61,6 +61,19 @@ describe('App forecast flow', () => {
     vi.stubGlobal('fetch', vi.fn(async (url) => {
       const requestUrl = new URL(url);
       const query = requestUrl.searchParams.get('q');
+      if (requestUrl.pathname === '/api/current') {
+        const latitudes = requestUrl.searchParams.getAll('lat');
+        const longitudes = requestUrl.searchParams.getAll('lng');
+        return jsonResponse(latitudes.map((lat, index) => ({
+          lat: Number(lat),
+          lng: Number(longitudes[index]),
+          temperature: 18.7,
+          code: 2,
+          summary: 'Partly cloudy',
+          tempMax: 20,
+          tempMin: 12
+        })));
+      }
       if (requestUrl.pathname === '/api/locations') {
         if (query === 'Hamilton') return jsonResponse(locations);
         if (query === 'Wellington') return jsonResponse([{
@@ -101,6 +114,208 @@ describe('App forecast flow', () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(screen.getAllByRole('button', { name: /chance of rain/ })).toHaveLength(7);
+  });
+
+  it('renders My location first with the reverse-geocoded device name', async () => {
+    localStorage.setItem('weather.savedPlaces.v1', JSON.stringify([{
+      id: '-41.290,174.780',
+      name: 'Wellington, New Zealand',
+      lat: -41.29,
+      lng: 174.78,
+      savedAt: '2026-10-14T00:00:00Z'
+    }]));
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (success) => success({
+          coords: { latitude: -37.78, longitude: 175.28 }
+        })
+      }
+    });
+    render(<App />);
+
+    const savedRegion = screen.getByRole('region', { name: 'Saved places' });
+    expect(await within(savedRegion).findByText('My location')).toBeInTheDocument();
+    expect(await within(savedRegion).findByText('Hamilton')).toBeInTheDocument();
+    expect(within(savedRegion).getByText('Wellington')).toBeInTheDocument();
+    await waitFor(() => expect(savedRegion.querySelector('.my-location-card .saved-place-open'))
+      .toHaveAccessibleName('Hamilton, 19 degrees, Partly cloudy. Open forecast.'));
+  });
+
+  it('requests current weather once for My location first, then saved places', async () => {
+    localStorage.setItem('weather.savedPlaces.v1', JSON.stringify([{
+      id: '-41.290,174.780',
+      name: 'Wellington, New Zealand',
+      lat: -41.29,
+      lng: 174.78,
+      savedAt: '2026-10-14T00:00:00Z'
+    }]));
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (success) => success({
+          coords: { latitude: -37.78, longitude: 175.28 }
+        })
+      }
+    });
+    render(<App />);
+
+    await within(screen.getByRole('region', { name: 'Saved places' }))
+      .findByText('Wellington');
+    await waitFor(() => {
+      const requests = fetch.mock.calls
+        .map(([url]) => new URL(url))
+        .filter((url) => url.pathname === '/api/current');
+      const latest = requests.at(-1);
+      expect(latest?.searchParams.getAll('lat')).toEqual(['-37.78', '-41.29']);
+      expect(latest?.searchParams.getAll('lng')).toEqual(['175.28', '174.78']);
+    });
+  });
+
+  it('does not store My location or show a remove control for it in Edit mode', async () => {
+    localStorage.setItem('weather.savedPlaces.v1', JSON.stringify([{
+      id: '-41.290,174.780',
+      name: 'Wellington, New Zealand',
+      lat: -41.29,
+      lng: 174.78,
+      savedAt: '2026-10-14T00:00:00Z'
+    }]));
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (success) => success({
+          coords: { latitude: -37.78, longitude: 175.28 }
+        })
+      }
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    const savedRegion = screen.getByRole('region', { name: 'Saved places' });
+    await within(savedRegion).findByText('My location');
+    await user.click(within(savedRegion).getByRole('button', { name: 'Edit' }));
+
+    expect(within(savedRegion).getByRole('button', { name: 'Remove Wellington' })).toBeInTheDocument();
+    expect(within(savedRegion).queryByRole('button', { name: 'Remove Hamilton' })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('weather.savedPlaces.v1'))).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem('weather.savedPlaces.v1'))[0].name).toContain('Wellington');
+  });
+
+  it('shows denied geolocation and asks again when the My location card is tapped', async () => {
+    const getCurrentPosition = vi.fn((_success, error) => {
+      if (getCurrentPosition.mock.calls.length === 1) {
+        error({ code: 1 });
+      } else {
+        _success({ coords: { latitude: -37.78, longitude: 175.28 } });
+      }
+    });
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition }
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    const savedRegion = screen.getByRole('region', { name: 'Saved places' });
+    const locationOff = await within(savedRegion).findByText('Location off · Tap to turn on');
+    expect(within(savedRegion).getByText('Allow location in your browser settings')).toBeInTheDocument();
+    await user.click(locationOff.closest('button'));
+
+    expect(getCurrentPosition).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows saved-place names immediately while current weather is loading', async () => {
+    localStorage.setItem('weather.savedPlaces.v1', JSON.stringify([{
+      id: '-41.290,174.780',
+      name: 'Wellington, New Zealand',
+      lat: -41.29,
+      lng: 174.78,
+      savedAt: '2026-10-14T00:00:00Z'
+    }]));
+    fetch.mockImplementation((url) => {
+      if (new URL(url).pathname === '/api/current') return new Promise(() => {});
+      return jsonResponse(forecast);
+    });
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Saved places' })).toBeInTheDocument();
+    expect(screen.getByText('Wellington')).toBeInTheDocument();
+    expect(screen.getByLabelText('Loading temperature')).toBeInTheDocument();
+  });
+
+  it('keeps the last weather and retries when the dashboard refresh fails', async () => {
+    localStorage.setItem('weather.savedPlaces.v1', JSON.stringify([{
+      id: '-41.290,174.780',
+      name: 'Wellington, New Zealand',
+      lat: -41.29,
+      lng: 174.78,
+      savedAt: '2026-10-14T00:00:00Z'
+    }]));
+    let requestCount = 0;
+    fetch.mockImplementation((url) => {
+      if (new URL(url).pathname === '/api/current') {
+        requestCount += 1;
+        if (requestCount === 1) return Promise.resolve(jsonResponse({ detail: 'Unavailable' }, 502));
+        return Promise.resolve(jsonResponse([{
+          lat: -41.29,
+          lng: 174.78,
+          temperature: 16,
+          code: 2,
+          summary: 'Partly cloudy',
+          tempMax: 19,
+          tempMin: 10
+        }]));
+      }
+      return Promise.resolve(jsonResponse(forecast));
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    const savedRegion = screen.getByRole('region', { name: 'Saved places' });
+
+    await within(savedRegion).findByRole('button', { name: 'Retry' });
+    expect(within(savedRegion).getByText("Couldn't update. Showing last known weather.")).toBeInTheDocument();
+    expect(within(savedRegion).getByText('Wellington')).toBeInTheDocument();
+    await user.click(within(savedRegion).getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => expect(requestCount).toBe(2));
+    await waitFor(() => expect(within(savedRegion).queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument());
+  });
+
+  it('removes saved places in edit mode and updates local storage', async () => {
+    localStorage.setItem('weather.savedPlaces.v1', JSON.stringify([{
+      id: '-41.290,174.780',
+      name: 'Wellington, New Zealand',
+      lat: -41.29,
+      lng: 174.78,
+      savedAt: '2026-10-14T00:00:00Z'
+    }]));
+    const user = userEvent.setup();
+    render(<App />);
+    const savedRegion = screen.getByRole('region', { name: 'Saved places' });
+
+    await within(savedRegion).findByText('Wellington');
+    await user.click(within(savedRegion).getByRole('button', { name: 'Edit' }));
+    await user.click(within(savedRegion).getByRole('button', { name: 'Remove Wellington' }));
+
+    expect(JSON.parse(localStorage.getItem('weather.savedPlaces.v1'))).toEqual([]);
+    expect(await screen.findByText('Removed Wellington')).toBeInTheDocument();
+    expect(within(savedRegion).queryByRole('button', { name: 'Done' })).not.toBeInTheDocument();
+  });
+
+  it('shows the empty state below My location and focuses Search from its button', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const savedRegion = screen.getByRole('region', { name: 'Saved places' });
+
+    expect(await within(savedRegion).findByText(/My location/)).toBeInTheDocument();
+    expect(within(savedRegion).getByText('No saved places yet')).toBeInTheDocument();
+    const pager = screen.getByLabelText('Weather app pages');
+    Object.defineProperty(pager, 'clientWidth', { configurable: true, value: 400 });
+    pager.scrollTo = vi.fn();
+    await user.click(within(savedRegion).getByRole('button', { name: 'Search for a place' }));
+
+    expect(pager.scrollTo).toHaveBeenCalledWith({ left: 400, behavior: 'smooth' });
+    expect(screen.getByRole('combobox')).toHaveFocus();
   });
 
   it('saves the displayed place and persists it, then removes it when clicked again', async () => {

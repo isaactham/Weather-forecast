@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchForecast, searchLocations } from './api.js';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fetchCurrentMany, fetchForecast, searchLocations } from './api.js';
 import { DayDetailSheet } from './components/DayDetailSheet.jsx';
 import { ForecastList } from './components/ForecastList.jsx';
 import { Hero } from './components/Hero.jsx';
 import { LocationDropdown } from './components/LocationDropdown.jsx';
 import { LocationHeader } from './components/LocationHeader.jsx';
+import { SavedPlaces } from './components/SavedPlaces.jsx';
 import { StatCards } from './components/StatCards.jsx';
 import { TemperatureChart } from './components/TemperatureChart.jsx';
 import { formatLocation, formatLocationDate, isCoordinates } from './utils/format.js';
@@ -128,6 +129,16 @@ function App() {
   const [searchMessage, setSearchMessage] = useState('');
   const [searchAnnouncement, setSearchAnnouncement] = useState('');
   const [savedPlaces, setSavedPlaces] = useState(loadSavedPlaces);
+  const [myLocation, setMyLocation] = useState(() => ({
+    name: 'My location',
+    status: navigator.geolocation ? 'loading' : 'unavailable'
+  }));
+  const [dashboardWeather, setDashboardWeather] = useState({});
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState(false);
+  const [dashboardUpdatedAt, setDashboardUpdatedAt] = useState(null);
+  const [dashboardRetry, setDashboardRetry] = useState(0);
+  const [editMode, setEditMode] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [toastMessage, setToastMessage] = useState('');
   const [activePage, setActivePage] = useState(
@@ -139,6 +150,10 @@ function App() {
   const pager = useRef(null);
   const scrollFrame = useRef(null);
   const toastTimer = useRef(null);
+  const pendingDeviceLocation = useRef(null);
+  const dashboardController = useRef(null);
+  const lastDashboardRequest = useRef({ key: '', time: 0 });
+  const handledDashboardRetry = useRef(0);
 
   const showToast = useCallback((message) => {
     setToastMessage(message);
@@ -275,6 +290,28 @@ function App() {
     showToast('Saved to your places');
   }, [data, savedPlaces, showToast]);
 
+  const removeSavedPlace = useCallback((place) => {
+    const updated = removePlace(savedPlaces, place.id);
+    setSavedPlaces(updated);
+    persistSavedPlaces(updated);
+    if (updated.length === 0) setEditMode(false);
+    setDashboardError(false);
+    showToast(`Removed ${place.name.split(',')[0]}`);
+  }, [savedPlaces, showToast]);
+
+  const openMyLocation = useCallback(() => {
+    if (myLocation.status !== 'ready') return;
+    setUsedCurrentLocation(true);
+    setIsDetailOpen(false);
+    setQuery(`${myLocation.lat.toFixed(4)}, ${myLocation.lng.toFixed(4)}`);
+    navigateToPage('search');
+  }, [myLocation, navigateToPage]);
+
+  const focusSearch = useCallback(() => {
+    navigateToPage('search');
+    window.setTimeout(() => searchContainer.current?.querySelector('input')?.focus(), 0);
+  }, [navigateToPage]);
+
   const moveHighlight = useCallback((direction) => {
     setActiveLocationIndex((current) => {
       const start = current < 0 ? 0 : current;
@@ -298,22 +335,37 @@ function App() {
     closeDropdown();
     setSearchMessage('');
     setSearchAnnouncement('');
+    setMyLocation({ name: 'My location', status: 'loading' });
 
     if (!navigator.geolocation) {
       setUsedCurrentLocation(false);
+      setMyLocation({ name: 'My location', status: 'unavailable' });
       setQuery('Hamilton');
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        const { latitude, longitude } = position.coords;
+        pendingDeviceLocation.current = { lat: latitude, lng: longitude };
+        setMyLocation({
+          name: 'My location',
+          lat: latitude,
+          lng: longitude,
+          status: 'loading'
+        });
         setUsedCurrentLocation(true);
         setIsDetailOpen(false);
         // The backend reverse-geocodes these coordinates while fetching the forecast.
-        setQuery(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
+        setQuery(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
       },
-      () => {
+      (error) => {
         setUsedCurrentLocation(false);
+        pendingDeviceLocation.current = null;
+        setMyLocation({
+          name: 'My location',
+          status: error.code === 2 || error.code === 3 ? 'unavailable' : 'denied'
+        });
         setQuery('Hamilton');
       },
       { timeout: 8000 }
@@ -403,9 +455,27 @@ function App() {
           : forecast);
         setSelectedDayIndex(0);
         setStatus('success');
+        const requestedLocation = pendingDeviceLocation.current;
+        if (
+          requestedLocation
+          && Math.abs(forecast.location.lat - requestedLocation.lat) < 0.00001
+          && Math.abs(forecast.location.lng - requestedLocation.lng) < 0.00001
+        ) {
+          pendingDeviceLocation.current = null;
+          setMyLocation({
+            name: forecast.location.name,
+            lat: requestedLocation.lat,
+            lng: requestedLocation.lng,
+            status: 'ready'
+          });
+        }
       })
       .catch((error) => {
         if (error.name === 'AbortError') return;
+        if (pendingDeviceLocation.current) {
+          pendingDeviceLocation.current = null;
+          setMyLocation((current) => ({ ...current, status: 'unavailable' }));
+        }
         setErrorMessage(error.message);
         setStatus('error');
       });
@@ -413,6 +483,75 @@ function App() {
     // Abort a slow older request so it cannot overwrite a newer search.
     return () => controller.abort();
   }, [query, retryCount]);
+
+  const isMyLocationReady = myLocation.status === 'ready';
+  const currentDashboardCoords = useMemo(() => [
+    ...(isMyLocationReady ? [{ lat: myLocation.lat, lng: myLocation.lng }] : []),
+    ...savedPlaces
+  ], [isMyLocationReady, myLocation.lat, myLocation.lng, savedPlaces]);
+
+  useEffect(() => {
+    if (activePage !== 'saved') return undefined;
+
+    const includeMyLocation = isMyLocationReady;
+    const coords = currentDashboardCoords;
+    if (coords.length === 0) return undefined;
+
+    const requestKey = coords.map(({ lat, lng }) => `${lat},${lng}`).join('|');
+    const forceRefresh = dashboardRetry !== handledDashboardRetry.current;
+    handledDashboardRetry.current = dashboardRetry;
+    const isFresh = Date.now() - lastDashboardRequest.current.time < 10 * 60 * 1000;
+    if (
+      !forceRefresh
+      && requestKey === lastDashboardRequest.current.key
+      && isFresh
+    ) return undefined;
+
+    const controller = new AbortController();
+    dashboardController.current?.abort();
+    dashboardController.current = controller;
+    setDashboardLoading(true);
+
+    fetchCurrentMany(coords, controller.signal)
+      .then((results) => {
+        if (controller.signal.aborted) return;
+        const nextWeather = {};
+        let resultIndex = 0;
+        if (includeMyLocation) {
+          nextWeather.myLocation = results[resultIndex];
+          resultIndex += 1;
+        }
+        savedPlaces.forEach((place, index) => {
+          nextWeather[place.id] = results[resultIndex + index];
+        });
+        setDashboardWeather((previous) => ({ ...previous, ...nextWeather }));
+        const fetchedAt = Date.now();
+        lastDashboardRequest.current = { key: requestKey, time: fetchedAt };
+        setDashboardUpdatedAt(fetchedAt);
+        setDashboardError(false);
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') return;
+        setDashboardError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setDashboardLoading(false);
+      });
+
+    return () => {
+      controller.abort();
+      if (dashboardController.current === controller) {
+        dashboardController.current = null;
+        setDashboardLoading(false);
+      }
+    };
+  }, [
+    activePage,
+    currentDashboardCoords,
+    isMyLocationReady,
+    savedPlaces,
+    dashboardRetry
+  ]);
 
   const forecast = data;
   const today = forecast?.days?.[0];
@@ -434,12 +573,21 @@ function App() {
         ref={pager}
         aria-label="Weather app pages"
       >
-        <section className="pager-page saved-page" id="saved" aria-label="Saved places">
-          <div className="saved-page-content">
-            <h1 className="saved-page-title">Saved places</h1>
-            <p className="saved-page-placeholder">Your saved places will appear here.</p>
-          </div>
-        </section>
+        <SavedPlaces
+          places={savedPlaces}
+          myLocation={myLocation}
+          weatherById={dashboardWeather}
+          isLoading={dashboardLoading}
+          updateError={dashboardError}
+          updatedAt={dashboardUpdatedAt}
+          editMode={editMode}
+          onToggleEdit={() => setEditMode((editing) => !editing)}
+          onRemove={removeSavedPlace}
+          onRetry={() => setDashboardRetry((count) => count + 1)}
+          onLocate={loadCurrentLocation}
+          onOpenMyLocation={openMyLocation}
+          onSearch={focusSearch}
+        />
         <section className="pager-page app-scroll" id="search" aria-label="Search">
           <div className="home-content">
           <SearchBar
