@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import forecast from './fixtures/forecast.json';
@@ -108,7 +108,35 @@ describe('App forecast flow', () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it('shows the waking-up message after four seconds and hides it when the forecast arrives', async () => {
+    vi.useFakeTimers();
+    let resolveForecast;
+    fetch.mockImplementation((url) => {
+      if (new URL(url).pathname === '/api/forecast') {
+        return new Promise((resolve) => {
+          resolveForecast = resolve;
+        });
+      }
+      return Promise.resolve(jsonResponse([]));
+    });
+
+    render(<App />);
+    const wakingMessage = 'Waking up the server, this can take up to a minute on the free plan…';
+
+    expect(screen.queryByText(wakingMessage)).not.toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    expect(screen.getByText(wakingMessage)).toBeInTheDocument();
+
+    await act(async () => {
+      resolveForecast(jsonResponse(forecast));
+    });
+    expect(screen.queryByText(wakingMessage)).not.toBeInTheDocument();
   });
 
   it('falls back to Hamilton and renders the location with seven forecast rows', async () => {

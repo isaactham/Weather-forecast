@@ -25,6 +25,7 @@ function SearchBar({
   onSearch,
   onLocate,
   isSearching,
+  isWakingUp,
   message,
   announcement,
   locations,
@@ -107,6 +108,11 @@ function SearchBar({
         onChoose={onChooseLocation}
       />
       {message && <p className="search-message" role="status">{message}</p>}
+      {isWakingUp && (
+        <p className="search-message" role="status" aria-live="polite">
+          Waking up the server, this can take up to a minute on the free plan…
+        </p>
+      )}
       <span className="visually-hidden" aria-live="polite">{announcement}</span>
     </div>
   );
@@ -126,6 +132,11 @@ function App() {
   const [locations, setLocations] = useState([]);
   const [activeLocationIndex, setActiveLocationIndex] = useState(-1);
   const [isSearching, setIsSearching] = useState(false);
+  const [wakingRequests, setWakingRequests] = useState({
+    forecast: 0,
+    locations: 0,
+    current: 0
+  });
   const [searchMessage, setSearchMessage] = useState('');
   const [searchAnnouncement, setSearchAnnouncement] = useState('');
   const [savedPlaces, setSavedPlaces] = useState(loadSavedPlaces);
@@ -158,13 +169,40 @@ function App() {
   const lastDashboardRequest = useRef({ key: '', time: 0 });
   const handledDashboardRetry = useRef(0);
 
+  const startWakeMessage = useCallback((requestType, signal) => {
+    let isVisible = false;
+    const timer = window.setTimeout(() => {
+      isVisible = true;
+      setWakingRequests((current) => ({
+        ...current,
+        [requestType]: current[requestType] + 1
+      }));
+    }, 4000);
+    const clear = () => {
+      window.clearTimeout(timer);
+      signal.removeEventListener('abort', clear);
+      if (isVisible) {
+        isVisible = false;
+        setWakingRequests((current) => ({
+          ...current,
+          [requestType]: Math.max(0, current[requestType] - 1)
+        }));
+      }
+    };
+    signal.addEventListener('abort', clear, { once: true });
+    return clear;
+  }, []);
+
   const showToast = useCallback((message) => {
     setToastMessage(message);
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToastMessage(''), 1800);
   }, []);
 
-  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+  useEffect(() => () => {
+    window.clearTimeout(toastTimer.current);
+    lookupController.current?.abort();
+  }, []);
 
   const scrollToPage = useCallback((page, behavior = 'smooth') => {
     const pagerElement = pager.current;
@@ -226,6 +264,7 @@ function App() {
     const controller = new AbortController();
     lookupController.current = controller;
     setIsSearching(true);
+    const clearWakeMessage = startWakeMessage('locations', controller.signal);
 
     searchLocations(text, controller.signal)
       .then((results) => {
@@ -245,12 +284,13 @@ function App() {
         setSearchMessage(error.message);
       })
       .finally(() => {
+        clearWakeMessage();
         if (lookupController.current === controller) {
           lookupController.current = null;
           setIsSearching(false);
         }
       });
-  }, [chooseLocation, closeDropdown]);
+  }, [chooseLocation, closeDropdown, startWakeMessage]);
 
   const updateSearchText = useCallback((value) => {
     lookupController.current?.abort();
@@ -470,6 +510,7 @@ function App() {
     setErrorMessage('');
 
     const request = typeof query === 'string' ? { q: query } : query;
+    const clearWakeMessage = startWakeMessage('forecast', controller.signal);
     fetchForecast(request.q, controller.signal)
       .then((forecast) => {
         // Preserve the exact label selected from the disambiguation list.
@@ -501,11 +542,14 @@ function App() {
         }
         setErrorMessage(error.message);
         setStatus('error');
+      })
+      .finally(() => {
+        clearWakeMessage();
       });
 
     // Abort a slow older request so it cannot overwrite a newer search.
     return () => controller.abort();
-  }, [query, retryCount]);
+  }, [query, retryCount, startWakeMessage]);
 
   useEffect(() => {
     if (status !== 'success' || !focusHeadingAfterForecast.current) return;
@@ -540,6 +584,7 @@ function App() {
     dashboardController.current?.abort();
     dashboardController.current = controller;
     setDashboardLoading(true);
+    const clearWakeMessage = startWakeMessage('current', controller.signal);
 
     fetchCurrentMany(coords, controller.signal)
       .then((results) => {
@@ -564,6 +609,7 @@ function App() {
         setDashboardError(true);
       })
       .finally(() => {
+        clearWakeMessage();
         if (!controller.signal.aborted) setDashboardLoading(false);
       });
 
@@ -579,7 +625,8 @@ function App() {
     currentDashboardCoords,
     isMyLocationReady,
     savedPlaces,
-    dashboardRetry
+    dashboardRetry,
+    startWakeMessage
   ]);
 
   const forecast = data;
@@ -607,6 +654,7 @@ function App() {
           myLocation={myLocation}
           weatherById={dashboardWeather}
           isLoading={dashboardLoading}
+          isWakingUp={wakingRequests.current > 0}
           updateError={dashboardError}
           updatedAt={dashboardUpdatedAt}
           editMode={editMode}
@@ -626,6 +674,7 @@ function App() {
             onLocate={loadCurrentLocation}
             onSearch={submitSearch}
             isSearching={isSearching}
+            isWakingUp={wakingRequests.locations > 0}
             message={searchMessage}
             announcement={searchAnnouncement}
             locations={locations}
@@ -639,11 +688,17 @@ function App() {
             <div className="loading-hero" role="status" aria-live="polite">
               <span className="loading-indicator" aria-hidden="true" />
               <p>Loading forecast…</p>
+              {wakingRequests.forecast > 0 && (
+                <p>Waking up the server, this can take up to a minute on the free plan…</p>
+              )}
             </div>
           )}
           {forecast && status === 'loading' && (
             <p className="loading-banner" role="status" aria-live="polite">
               Loading forecast for {typeof query === 'string' ? query : query.label ?? query.q}…
+              {wakingRequests.forecast > 0 && (
+                <> Waking up the server, this can take up to a minute on the free plan…</>
+              )}
             </p>
           )}
           {status === 'error' && (

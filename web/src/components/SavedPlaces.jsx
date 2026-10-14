@@ -96,6 +96,7 @@ export function SavedPlaces({
   myLocation,
   weatherById,
   isLoading,
+  isWakingUp,
   updateError,
   updatedAt,
   editMode,
@@ -133,6 +134,11 @@ export function SavedPlaces({
           )}
         </header>
         <p className="saved-page-subtitle">{updatedLabel} · {places.length} {places.length === 1 ? 'place' : 'places'}</p>
+        {isWakingUp && (
+          <p role="status" aria-live="polite">
+            Waking up the server, this can take up to a minute on the free plan…
+          </p>
+        )}
         {updateError && (
           <div className="saved-update-error" role="status">
             <span>Couldn't update. Showing last known weather.</span>
