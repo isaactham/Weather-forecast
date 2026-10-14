@@ -120,6 +120,78 @@ def test_forecast_service_down_returns_502():
 
 
 @respx.mock
+def test_current_returns_summaries_for_multiple_locations():
+    mock = mock_forecast(httpx.Response(200, json=[
+        {
+            "current": {"temperature_2m": 18.4, "weather_code": 2},
+            "daily": {"temperature_2m_max": [20.1], "temperature_2m_min": [11.2]},
+        },
+        {
+            "current": {"temperature_2m": 14.3, "weather_code": 3},
+            "daily": {"temperature_2m_max": [17.5], "temperature_2m_min": [9.8]},
+        },
+    ]))
+
+    response = client.get("/api/current", params=[
+        ("lat", "-37.78"),
+        ("lng", "175.28"),
+        ("lat", "-41.29"),
+        ("lng", "174.78"),
+    ])
+
+    assert response.status_code == 200
+    assert [entry["lat"] for entry in response.json()] == [-37.78, -41.29]
+    assert response.json()[0]["summary"] == "Partly cloudy"
+    assert mock.call_count == 1
+
+
+def test_current_rejects_mismatched_coordinate_lengths():
+    response = client.get("/api/current", params=[("lat", "-37.78"), ("lng", "175.28"), ("lat", "-41.29")])
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Latitude and longitude lists must have the same number of values."
+
+
+def test_current_rejects_empty_coordinate_lists():
+    response = client.get("/api/current")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Please provide at least one latitude and longitude."
+
+
+def test_current_rejects_more_than_21_locations():
+    params = [(key, str(value)) for _ in range(22) for key, value in (("lat", 0), ("lng", 0))]
+
+    response = client.get("/api/current", params=params)
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "A maximum of 21 locations is allowed."
+
+
+def test_current_rejects_out_of_range_coordinates():
+    response = client.get("/api/current", params=[("lat", "91"), ("lng", "0")])
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Latitude values must be between -90 and 90."
+
+
+def test_current_rejects_out_of_range_longitudes():
+    response = client.get("/api/current", params=[("lat", "0"), ("lng", "181")])
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Longitude values must be between -180 and 180."
+
+
+@respx.mock
+def test_current_returns_502_when_weather_service_fails():
+    mock_forecast(httpx.Response(500))
+
+    response = client.get("/api/current", params=[("lat", "-37.78"), ("lng", "175.28")])
+
+    assert response.status_code == 502
+
+
+@respx.mock
 def test_locations_returns_matches():
     fixture = load("geocode_hamilton_multi.json")
     mock_geocoding(httpx.Response(200, json=fixture))

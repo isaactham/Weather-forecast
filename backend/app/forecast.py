@@ -85,3 +85,40 @@ def fetch_forecast(lat: float, lng: float) -> dict:
 
     return response.json()
 
+
+def fetch_current_many(coords: list[tuple[float, float]]) -> list[dict]:
+    params = {
+        "latitude": ",".join(str(lat) for lat, _ in coords),
+        "longitude": ",".join(str(lng) for _, lng in coords),
+        "current": "temperature_2m,weather_code",
+        "daily": "temperature_2m_max,temperature_2m_min",
+        "timezone": "auto",
+        "forecast_days": 1,
+    }
+
+    try:
+        response = httpx.get(FORECAST_URL, params=params, timeout=10)
+        response.raise_for_status()
+    except httpx.HTTPError as error:
+        raise WeatherServiceError("Weather service is unavailable") from error
+
+    data = response.json()
+    # Open-Meteo returns an object for one coordinate and a list for several.
+    results = data if isinstance(data, list) else [data]
+    summaries = []
+
+    for (lat, lng), result in zip(coords, results):
+        current = result.get("current", {})
+        daily = result.get("daily", {})
+        code = current.get("weather_code")
+        summaries.append({
+            "lat": lat,
+            "lng": lng,
+            "temperature": current.get("temperature_2m"),
+            "code": code,
+            "summary": describe(code),
+            "tempMax": (daily.get("temperature_2m_max") or [None])[0],
+            "tempMin": (daily.get("temperature_2m_min") or [None])[0],
+        })
+
+    return summaries

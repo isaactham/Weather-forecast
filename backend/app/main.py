@@ -10,8 +10,14 @@ from app.geocoding import (
     GeocodingError,
     LocationNotFoundError,
 )
-from app.forecast import fetch_forecast, build_current, build_days, WeatherServiceError
-from app.models import LocationOption
+from app.forecast import (
+    fetch_current_many,
+    fetch_forecast,
+    build_current,
+    build_days,
+    WeatherServiceError,
+)
+from app.models import CurrentSummary, LocationOption
 
 app = FastAPI(title="Weather App")
 
@@ -26,6 +32,34 @@ app.add_middleware(
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/current", response_model=list[CurrentSummary])
+def get_current(
+    lat: list[float] = Query(default=[]),
+    lng: list[float] = Query(default=[]),
+):
+    if not lat or not lng:
+        raise HTTPException(status_code=400, detail="Please provide at least one latitude and longitude.")
+    if len(lat) != len(lng):
+        raise HTTPException(
+            status_code=400,
+            detail="Latitude and longitude lists must have the same number of values.",
+        )
+    if len(lat) > 21:
+        raise HTTPException(status_code=400, detail="A maximum of 21 locations is allowed.")
+    if any(value < -90 or value > 90 for value in lat):
+        raise HTTPException(status_code=400, detail="Latitude values must be between -90 and 90.")
+    if any(value < -180 or value > 180 for value in lng):
+        raise HTTPException(status_code=400, detail="Longitude values must be between -180 and 180.")
+
+    try:
+        return fetch_current_many(list(zip(lat, lng)))
+    except WeatherServiceError:
+        raise HTTPException(
+            status_code=502,
+            detail="The weather service is unavailable right now. Please try again shortly",
+        )
 
 
 @app.get("/api/locations", response_model=list[LocationOption])
