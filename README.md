@@ -10,6 +10,15 @@ A mobile-first weather app that takes a place name, address or latitude/longitud
 | API docs (interactive) | [weather-api-e1vm.onrender.com/docs](https://weather-api-e1vm.onrender.com/docs)             |
 | Health check           | [weather-api-e1vm.onrender.com/api/health](https://weather-api-e1vm.onrender.com/api/health) |
 
+### Alternative deployment (Vercel)
+
+|                        | Link                              |
+| ---------------------- | --------------------------------- |
+| **App**                | `<vercel-frontend-url>`            |
+| API docs (interactive) | `<vercel-backend-url>/docs`        |
+
+The Vercel API runs as serverless functions, so it doesn't have Render's roughly one-minute cold start.
+
 > **Heads up:** the API runs on Render's free plan, which sleeps after 15 minutes without traffic. The first request after that can take up to a minute while it wakes up. The app shows a "Waking up the server…" message while this happens.
 
 **Try these searches:** `Hamilton` (shows a "Did you mean…" list of every Hamilton), `Queenstown`, `-41.29, 174.78` (coordinates for Wellington), `218 Anglesea Street, Hamilton`.
@@ -228,6 +237,10 @@ Both parts are deployed on Render's free plan using a **Blueprint** (`render.yam
 Every push to `main` redeploys automatically. Settings such as allowed origins and the API URL come from environment variables, so no URLs are hard-coded.
 
 **Trade-off:** the free API sleeps when idle, which causes a slow first request. For production I'd host the backend on AWS (for example App Runner or Elastic Beanstalk) or a paid instance with no cold starts, in a region closer to New Zealand.
+
+### Vercel (alternative)
+
+Create two Vercel projects from the same repository: one with Root Directory `backend` for the FastAPI API, and one with Root Directory `web` for the React frontend. The backend project needs `ALLOWED_ORIGINS` and `NOMINATIM_USER_AGENT`; the frontend project needs `VITE_API_URL`, set to the backend project's URL without a trailing slash. Both deployments use the same code.
 
 ---
 

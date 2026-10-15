@@ -108,3 +108,4 @@ Weather codes:
 - Deployed to Render (free) using a Blueprint (`render.yaml`) so the setup is version-controlled; config comes from environment variables.
 - Trade-off: the free API sleeps after 15 minutes, handled with a “waking up” message.
 - In production I'd use AWS (App Runner or Elastic Beanstalk) to avoid cold starts.
+- Deployed to both Render and Vercel from the same code. Render runs the API as an always-on server (sleeps when idle on the free plan); Vercel runs it as serverless functions (faster to wake, but in-memory caches aren't shared between instances). Config comes only from environment variables, which is what makes two hosts possible without code changes.
