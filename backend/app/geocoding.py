@@ -78,6 +78,8 @@ def geocode(query: str) -> dict:
 
 @lru_cache(maxsize=256)
 def _reverse_geocode_cached(lat: float, lng: float) -> str | None:
+    # On serverless platforms like Vercel, each instance has its own cache, so
+    # this helps less than on an always-on server; Redis would share it in production.
     # Nominatim asks clients to cache results and stay below one request per second;
     # repeated searches often use the same location.
     params = {

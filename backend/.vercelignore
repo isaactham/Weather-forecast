@@ -1,0 +1,8 @@
+# WHY: Keep tests and local development files out of the serverless bundle.
+tests/
+.pytest_cache/
+__pycache__/
+.venv/
+
+# WHY: Prevent local secrets from being uploaded with the deployment.
+.env
