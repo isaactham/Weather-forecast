@@ -4,7 +4,7 @@ A mobile-first weather app that takes a place name, address or latitude/longitud
 
 ## Live demo
 
-### 👉 [Open the app](https://weather-forecast-five-khaki.vercel.app)
+### [Open the app](https://weather-forecast-five-khaki.vercel.app)
 
 |                        | Link                                                                                                                         |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
