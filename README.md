@@ -4,26 +4,31 @@ A mobile-first weather app that takes a place name, address or latitude/longitud
 
 ## Live demo
 
+### 👉 [Open the app](https://weather-forecast-five-khaki.vercel.app)
+
+|                        | Link                                                                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **App**                | **[weather-forecast-five-khaki.vercel.app](https://weather-forecast-five-khaki.vercel.app)**                                 |
+| API docs (interactive) | [weather-forecast-api-isaac-tham.vercel.app/docs](https://weather-forecast-api-isaac-tham.vercel.app/docs)                   |
+| Health check           | [weather-forecast-api-isaac-tham.vercel.app/api/health](https://weather-forecast-api-isaac-tham.vercel.app/api/health)       |
+
+Hosted on Vercel, where the API runs as serverless functions, so it responds quickly even after a quiet period.
+
+### Backup deployment (Render)
+
+If the main link is ever unavailable, the same code is also deployed on Render:
+
 |                        | Link                                                                                         |
 | ---------------------- | -------------------------------------------------------------------------------------------- |
-| **App**                | **[weather-hrbc.onrender.com](https://weather-hrbc.onrender.com)**                           |
+| App                    | [weather-hrbc.onrender.com](https://weather-hrbc.onrender.com)                               |
 | API docs (interactive) | [weather-api-e1vm.onrender.com/docs](https://weather-api-e1vm.onrender.com/docs)             |
 | Health check           | [weather-api-e1vm.onrender.com/api/health](https://weather-api-e1vm.onrender.com/api/health) |
 
-### Alternative deployment (Vercel)
-
-|                        | Link                              |
-| ---------------------- | --------------------------------- |
-| **App**                | `<vercel-frontend-url>`            |
-| API docs (interactive) | `<vercel-backend-url>/docs`        |
-
-The Vercel API runs as serverless functions, so it doesn't have Render's roughly one-minute cold start.
-
-> **Heads up:** the API runs on Render's free plan, which sleeps after 15 minutes without traffic. The first request after that can take up to a minute while it wakes up. The app shows a "Waking up the server…" message while this happens.
+> **Heads up:** the Render API runs on the free plan, which sleeps after 15 minutes without traffic. The first request after that can take up to a minute while it wakes up. The app shows a "Waking up the server…" message while this happens.
 
 **Try these searches:** `Hamilton` (shows a "Did you mean…" list of every Hamilton), `Queenstown`, `-41.29, 174.78` (coordinates for Wellington), `218 Anglesea Street, Hamilton`.
 
-**Preview every weather background:** add `?condition=` with `clear`, `cloudy`, `rain`, `snow` or `storm` to the app URL, e.g. [weather-hrbc.onrender.com/?condition=snow](https://weather-hrbc.onrender.com/?condition=snow).
+**Preview every weather background:** add `?condition=` with `clear`, `cloudy`, `rain`, `snow` or `storm` to the app URL, e.g. [weather-forecast-five-khaki.vercel.app/?condition=snow](https://weather-forecast-five-khaki.vercel.app/?condition=snow).
 
 ---
 
@@ -66,7 +71,7 @@ The Vercel API runs as serverless functions, so it doesn't have Render's roughly
 | Frontend | React, Vite, plain CSS with custom properties (no UI or chart libraries)                                                                     |
 | Testing  | pytest + respx (backend), Vitest + Testing Library (frontend)                                                                                |
 | Data     | [Open-Meteo](https://open-meteo.com/) forecast and geocoding APIs, [Nominatim](https://nominatim.org/) (OpenStreetMap) for reverse geocoding |
-| Hosting  | [Render](https://render.com/) (free plan), configured with a Blueprint (`render.yaml`)                                                       |
+| Hosting  | [Vercel](https://vercel.com/) (main), with [Render](https://render.com/) as a backup configured by a Blueprint (`render.yaml`)                |
 
 ---
 
@@ -159,7 +164,7 @@ Weather-forecast/
 │   │   ├── utils/             Formatting, weather conditions, saved places, chart maths
 │   │   └── __tests__/
 │   └── .env.example
-├── render.yaml                Deployment configuration (Render Blueprint)
+├── render.yaml                Backup deployment configuration (Render Blueprint)
 ├── DECISIONS.md               Design and technical decisions, with reasons
 └── README.md
 ```
@@ -229,18 +234,29 @@ cd web && npm test
 
 ## Deployment
 
-Both parts are deployed on Render's free plan using a **Blueprint** (`render.yaml`), so the hosting setup is version-controlled alongside the code:
+The same code is deployed to two hosts. Settings such as allowed origins and the API URL come only from environment variables, so no URLs are hard-coded, and that's what makes two hosts possible without code changes. Every push to `main` redeploys both.
+
+### Vercel (main)
+
+Two Vercel projects are created from this one repository:
+
+- **weather-forecast-api**: Root Directory `backend`. Vercel detects the FastAPI `app` in `app/main.py` and runs it as serverless functions. Needs `ALLOWED_ORIGINS` and `NOMINATIM_USER_AGENT`.
+- **weather-forecast**: Root Directory `web`, built with Vite. Needs `VITE_API_URL` set to the API's URL (no trailing slash).
+
+Deployment Protection is turned off for both projects, since the app and API are meant to be public.
+
+### Render (backup)
+
+Deployed on Render's free plan using a **Blueprint** (`render.yaml`), so the hosting setup is version-controlled alongside the code:
 
 - **weather-api**: a Python web service (`uvicorn app.main:app --host 0.0.0.0 --port $PORT`), with a health check on `/api/health`
 - **weather**: a static site built from `web/` with `npm run build`
 
-Every push to `main` redeploys automatically. Settings such as allowed origins and the API URL come from environment variables, so no URLs are hard-coded.
+### Trade-offs
 
-**Trade-off:** the free API sleeps when idle, which causes a slow first request. For production I'd host the backend on AWS (for example App Runner or Elastic Beanstalk) or a paid instance with no cold starts, in a region closer to New Zealand.
-
-### Vercel (alternative)
-
-Create two Vercel projects from the same repository: one with Root Directory `backend` for the FastAPI API, and one with Root Directory `web` for the React frontend. The backend project needs `ALLOWED_ORIGINS` and `NOMINATIM_USER_AGENT`; the frontend project needs `VITE_API_URL`, set to the backend project's URL without a trailing slash. Both deployments use the same code.
+- **Render** runs the API as an always-on server, but the free plan sleeps when idle, so the first request can take up to a minute.
+- **Vercel** runs the API as serverless functions, which wake much faster. The trade-off is that in-memory caches (like the reverse-geocoding cache) aren't shared between instances, so a shared cache such as Redis would be the production fix.
+- For production I'd consider AWS (for example App Runner or Elastic Beanstalk) or a paid instance, in a region closer to New Zealand.
 
 ---
 
@@ -273,7 +289,7 @@ I wrote the core input-parsing logic myself, and worked through the backend modu
 ## Known limitations and next steps
 
 - **Saved places live in one browser.** User accounts and a database would let them sync across devices
-- **Cold starts** on the free hosting plan (see Deployment)
+- **Cold starts** on Render's free plan, and caches not shared between serverless instances on Vercel (see Deployment)
 - **Hourly forecasts** for the detail sheet
 - **Caching forecast responses** for a few minutes to reduce calls to Open-Meteo
 - **Reverse geocoding and the forecast run one after the other.** Running them at the same time would make coordinate searches faster
